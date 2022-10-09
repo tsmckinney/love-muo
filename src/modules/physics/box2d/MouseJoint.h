@@ -48,7 +48,7 @@ public:
 	/**
 	 * Creates a MouseJoint which connects body1 to the target point.
 	 **/
-	MouseJoint(Body *body1, float x, float y);
+	MouseJoint(Body *body1, float x, float y, float stiffness);
 
 	virtual ~MouseJoint();
 
@@ -74,6 +74,17 @@ public:
 	 * to move the candidate body.
 	 **/
 	float getMaxForce() const;
+	/**
+	 * Sets the maximum constraint force that can be exerted
+	 * to move the candidate body.
+	 **/
+	void setStiffness(float stiff);
+
+	/**
+	 * Gets the maximum constraint force that can be exerted
+	 * to move the candidate body.
+	 **/
+	float getStiffness() const;
 
 	/**
 	 * Sets the response speed. Independent of mass
