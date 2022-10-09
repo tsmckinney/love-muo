@@ -75,14 +75,12 @@ public:
 	 **/
 	float getMaxForce() const;
 	/**
-	 * Sets the maximum constraint force that can be exerted
-	 * to move the candidate body.
+	 * Sets how stiff the body is.
 	 **/
 	void setStiffness(float stiff);
 
 	/**
-	 * Gets the maximum constraint force that can be exerted
-	 * to move the candidate body.
+	 * Gets how stiff the body is.
 	 **/
 	float getStiffness() const;
 

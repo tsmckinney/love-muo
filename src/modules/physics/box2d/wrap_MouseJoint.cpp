@@ -146,6 +146,8 @@ static const luaL_Reg w_MouseJoint_functions[] =
 	{ "getTarget", w_MouseJoint_getTarget },
 	{ "setMaxForce", w_MouseJoint_setMaxForce },
 	{ "getMaxForce", w_MouseJoint_getMaxForce },
+	{ "setStiffness", w_MouseJoint_setStiffness },
+	{ "getStiffness", w_MouseJoint_getStiffness },
 	{ "setFrequency", w_MouseJoint_setFrequency },
 	{ "getFrequency", w_MouseJoint_getFrequency },
 	{ "setDampingRatio", w_MouseJoint_setDampingRatio },
