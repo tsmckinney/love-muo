@@ -636,8 +636,9 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 	// Enforce minimum window dimensions.
 	SDL_SetWindowMinimumSize(window, f.minwidth, f.minheight);
-	SDL_SetWindowOpacity(window, (float)f.opacity);
-
+	float opacity = (float)f.opacity;
+	SDL_SetWindowOpacity(window, opacity);
+	SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, f.clickthrough?"1":"0");
 	if (this->settings.displayindex != f.displayindex || f.useposition || f.centered)
 		SDL_SetWindowPosition(window, x, y);
 
@@ -775,6 +776,10 @@ void Window::updateSettings(const WindowSettings &newsettings, bool updateGraphi
 	settings.stencil = newsettings.stencil;
 	settings.depth = newsettings.depth;
 	settings.opacity = newsettings.opacity;
+	float fOpacity = (float)settings.opacity;
+	SDL_SetWindowOpacity(window, fOpacity);
+	settings.clickthrough = newsettings.clickthrough;
+	SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, settings.clickthrough?"1":"0");
 
 	SDL_DisplayMode dmode = {};
 	SDL_GetCurrentDisplayMode(settings.displayindex, &dmode);
