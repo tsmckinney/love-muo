@@ -60,7 +60,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        path: megasource/libs/love
+        path: megasource/libs/love-muo
     - name: Prepare Vulkan SDK
       uses: humbletim/setup-vulkan-sdk@v1.2.0
       with:

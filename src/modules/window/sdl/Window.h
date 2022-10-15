@@ -67,6 +67,8 @@ public:
 
 	void setPosition(int x, int y, int displayindex) override;
 	void getPosition(int &x, int &y, int &displayindex) override;
+	void setOpacity(double opacity) override;
+	void getOpacity(double &opacity) override;
 
 	Rect getSafeArea() const override;
 

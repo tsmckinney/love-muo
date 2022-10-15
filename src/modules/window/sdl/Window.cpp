@@ -636,6 +636,7 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 	// Enforce minimum window dimensions.
 	SDL_SetWindowMinimumSize(window, f.minwidth, f.minheight);
+	SDL_SetWindowOpacity(window, (float)f.opacity);
 
 	if (this->settings.displayindex != f.displayindex || f.useposition || f.centered)
 		SDL_SetWindowPosition(window, x, y);
@@ -773,6 +774,7 @@ void Window::updateSettings(const WindowSettings &newsettings, bool updateGraphi
 
 	settings.stencil = newsettings.stencil;
 	settings.depth = newsettings.depth;
+	settings.opacity = newsettings.opacity;
 
 	SDL_DisplayMode dmode = {};
 	SDL_GetCurrentDisplayMode(settings.displayindex, &dmode);
@@ -1008,6 +1010,28 @@ void Window::getPosition(int &x, int &y, int &displayindex)
 		x -= displaybounds.x;
 		y -= displaybounds.y;
 	}
+}
+
+void Window::setOpacity(double opacity)
+{
+	if (!window)
+		return;
+
+	float fOpacity = (float)opacity;
+	SDL_SetWindowOpacity(window, fOpacity);
+	settings.opacity = opacity;
+}
+
+void Window::getOpacity(double &opacity)
+{
+	if (!window)
+	{
+		opacity = 1;
+		return;
+	}
+	float fOpacity[1] = {(float)opacity};
+	float* fOpacityPoint = fOpacity;
+	SDL_GetWindowOpacity(window, fOpacityPoint);
 }
 
 Rect Window::getSafeArea() const
