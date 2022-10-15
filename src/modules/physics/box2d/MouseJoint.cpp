@@ -49,7 +49,7 @@ MouseJoint::MouseJoint(Body *body1, float x, float y, float stiffness)
 	def.bodyB = body1->body;
 	def.maxForce = 1000.0f * body1->body->GetMass();
 	def.target = Physics::scaleDown(b2Vec2(x,y));
-	def.stiffness = stiffness
+	def.stiffness = stiffness;
 	joint = (b2MouseJoint *)createJoint(&def);
 }
 
@@ -77,15 +77,6 @@ void MouseJoint::setMaxForce(float force)
 float MouseJoint::getMaxForce() const
 {
 	return Physics::scaleUp(joint->GetMaxForce());
-}
-void MouseJoint::setStiffness(float stiff)
-{
-	joint->SetStiffness(stiff);
-}
-
-float MouseJoint::getStiffness() const
-{
-	return joint->GetStiffness();
 }
 
 void MouseJoint::setFrequency(float hz)

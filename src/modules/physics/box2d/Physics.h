@@ -169,8 +169,9 @@ public:
 	 * Creates a new MouseJoint connecting the body with an arbitrary point.
 	 * @param x Anchor along the x-axis. (World coordinates)
 	 * @param y Anchor along the y-axis. (World coordinates)
+	 * @param stiffness Sets the stiffness.
 	 **/
-	MouseJoint *newMouseJoint(Body *body, float x, float y);
+	MouseJoint *newMouseJoint(Body *body, float x, float y, float stiffness);
 
 	/**
 	 * Creates a new RevoluteJoint connecting body1 with body2.
