@@ -171,7 +171,7 @@ public:
 	 * @param y Anchor along the y-axis. (World coordinates)
 	 * @param stiffness Sets the stiffness.
 	 **/
-	MouseJoint *newMouseJoint(Body *body, float x, float y, float stiffness);
+	MouseJoint *newMouseJoint(Body *body, float x, float y);
 
 	/**
 	 * Creates a new RevoluteJoint connecting body1 with body2.

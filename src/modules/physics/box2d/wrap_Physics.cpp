@@ -205,9 +205,8 @@ int w_newMouseJoint(lua_State *L)
 	Body *body = luax_checkbody(L, 1);
 	float x = (float)luaL_checknumber(L, 2);
 	float y = (float)luaL_checknumber(L, 3);
-	float stiff = (float)luaL_checknumber(L, 4);
 	MouseJoint *j;
-	luax_catchexcept(L, [&](){ j = instance()->newMouseJoint(body, x, y, stiff); });
+	luax_catchexcept(L, [&](){ j = instance()->newMouseJoint(body, x, y); });
 	luax_pushtype(L, j);
 	j->release();
 	return 1;

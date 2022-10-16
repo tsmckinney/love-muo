@@ -237,9 +237,9 @@ DistanceJoint *Physics::newDistanceJoint(Body *body1, Body *body2, float x1, flo
 	return new DistanceJoint(body1, body2, x1, y1, x2, y2, collideConnected);
 }
 
-MouseJoint *Physics::newMouseJoint(Body *body, float x, float y, float stiffness)
+MouseJoint *Physics::newMouseJoint(Body *body, float x, float y)
 {
-	return new MouseJoint(body, x, y, stiffness);
+	return new MouseJoint(body, x, y);
 }
 
 RevoluteJoint *Physics::newRevoluteJoint(Body *body1, Body *body2, float xA, float yA, float xB, float yB, bool collideConnected)
