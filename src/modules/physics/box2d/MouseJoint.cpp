@@ -36,7 +36,7 @@ namespace box2d
 
 love::Type MouseJoint::type("MouseJoint", &Joint::type);
 
-MouseJoint::MouseJoint(Body *body1, float x, float y, float stiffness)
+MouseJoint::MouseJoint(Body *body1, float x, float y)
 	: Joint(body1)
 	, joint(NULL)
 {
@@ -49,7 +49,6 @@ MouseJoint::MouseJoint(Body *body1, float x, float y, float stiffness)
 	def.bodyB = body1->body;
 	def.maxForce = 1000.0f * body1->body->GetMass();
 	def.target = Physics::scaleDown(b2Vec2(x,y));
-	def.stiffness = stiffness;
 	joint = (b2MouseJoint *)createJoint(&def);
 }
 

@@ -48,7 +48,7 @@ public:
 	/**
 	 * Creates a MouseJoint which connects body1 to the target point.
 	 **/
-	MouseJoint(Body *body1, float x, float y, float stiffness);
+	MouseJoint(Body *body1, float x, float y);
 
 	virtual ~MouseJoint();
 
