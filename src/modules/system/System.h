@@ -60,6 +60,11 @@ public:
 	std::string getOS() const;
 
 	/**
+	 * Gets the user's name.
+	**/
+	std::string getUserName() const;
+
+	/**
 	 * Gets the number of reported CPU cores on the current system.
 	 * Does not account for technologies such as Hyperthreading: a 4-core
 	 * Hyperthreading-enabled Intel CPU will report 8, instead of 4.
