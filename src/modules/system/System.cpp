@@ -38,6 +38,9 @@
 #include <shellapi.h>
 #include <windows.h>
 #include <Lmcons.h>
+#include <security.h>
+#include <iostream>
+#include <secext.h>
 #pragma comment(lib, "shell32.lib")
 #endif
 #if defined(LOVE_ANDROID)
@@ -98,11 +101,12 @@ std::string System::getUserName() const
 	return "Player";
 #elif defined(LOVE_WINDOWS_UWP)
 	char username[UNLEN+1];
+	EXTENDED_NAME_FORMAT displayName = NameDisplay;
 	wchar_t wcharuser[20];
 	mbstowcs(wcharuser, username, strlen(username)+1);//Plus null
 	LPWSTR userptr = wcharuser;
 	DWORD username_len = UNLEN+1;
-	GetUserNameW(userptr, &username_len);
+	GetUserNameExW(displayName, userptr, &username_len);
 	std::string userstr;
     userstr.reserve(wcslen(userptr));
     for (;*userptr; userptr++)
@@ -110,11 +114,12 @@ std::string System::getUserName() const
 	return userstr;
 #elif defined(LOVE_WINDOWS)
 	char username[UNLEN+1];
+	EXTENDED_NAME_FORMAT displayName = NameDisplay;
 	wchar_t wcharuser[20];
 	mbstowcs(wcharuser, username, strlen(username)+1);//Plus null
 	LPWSTR userptr = wcharuser;
 	DWORD username_len = UNLEN+1;
-	GetUserNameW(userptr, &username_len);
+	GetUserNameExW(displayName, userptr, &username_len);
 	std::string userstr;
     userstr.reserve(wcslen(userptr));
     for (;*userptr; userptr++)

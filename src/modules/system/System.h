@@ -61,6 +61,7 @@ public:
 
 	/**
 	 * Gets the user's name.
+	 * Stack Overflow and the Microsoft Windows.h Wiki helped!
 	**/
 	std::string getUserName() const;
 
