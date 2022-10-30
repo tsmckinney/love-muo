@@ -15,8 +15,7 @@ jobs:
                                           libxfixes-dev libxi-dev libxinerama-dev libxxf86vm-dev libxss-dev \
                                           libgl1-mesa-dev libdbus-1-dev libudev-dev libgles2-mesa-dev \
                                           libegl1-mesa-dev libibus-1.0-dev fcitx-libs-dev libsamplerate0-dev \
-                                          libsndio-dev libwayland-dev libxkbcommon-dev libdrm-dev libgbm-dev \
-                                          libvulkan-dev
+                                          libsndio-dev libwayland-dev libxkbcommon-dev libdrm-dev libgbm-dev
     - name: Checkout love-appimage-source
       uses: actions/checkout@v3
       with:
@@ -99,6 +98,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       with:
+<<<<<<< HEAD
         path: megasource/libs/love-muo
     - name: Prepare Vulkan SDK
       uses: humbletim/setup-vulkan-sdk@v1.2.0
@@ -106,6 +106,9 @@ jobs:
         vulkan-query-version: 1.3.204.0
         vulkan-components: Vulkan-Headers, Vulkan-Loader
         vulkan-use-cache: true
+=======
+        path: megasource/libs/love
+>>>>>>> 8cda22ef7deeea44b1b8220dcf2d29968420eb48
     - name: Download ANGLE
       uses: robinraju/release-downloader@v1.5
       if: steps.vars.outputs.angle == '1'
