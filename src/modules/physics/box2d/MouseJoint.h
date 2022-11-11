@@ -74,15 +74,6 @@ public:
 	 * to move the candidate body.
 	 **/
 	float getMaxForce() const;
-	/**
-	 * Sets how stiff the body is.
-	 **/
-	void setStiffness(float stiff);
-
-	/**
-	 * Gets how stiff the body is.
-	 **/
-	float getStiffness() const;
 
 	/**
 	 * Sets the response speed. Independent of mass
@@ -104,7 +95,16 @@ public:
 	 **/
 	float getDampingRatio() const;
 
+	/**
+	 * Sets the response speed. Dependent of mass
+	 **/
+	void setStiffness(float k);
 
+	/**
+	 * Gets the response speed. Dependent of mass
+	 **/
+	float getStiffness() const;
+	
 	/**
 	 * Set the spring damping. Dependent of mass
 	 **/
