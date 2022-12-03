@@ -57,7 +57,7 @@ public:
 	/**
 	 * Gets the current operating system.
 	 **/
-	std::string getOS() const;
+	static const char *getOS();
 
 	/**
 	 * Gets the user's name.
