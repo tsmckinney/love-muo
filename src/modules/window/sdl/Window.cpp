@@ -1177,6 +1177,11 @@ int Window::getVSync() const
 	}
 #endif
 
+#ifdef LOVE_GRAPHICS_VULKAN
+	if (windowRenderer == love::graphics::RENDERER_VULKAN)
+		return love::graphics::vulkan::Vulkan::getVsync();
+#endif
+
 	return 0;
 }
 
