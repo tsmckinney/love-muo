@@ -18,6 +18,9 @@ We tag all our releases (since we started using mercurial and git), and have bin
 
 Experimental changes are developed in a separate [love-experiments][love-experiments] repository.
 
+(Update from tsmckinney: The changes I've made for Evertab are in a separate branch called evertab-changes. This is to make sure that I don't accidentally merge the 
+changes I made for Evertab into the actual project.)
+
 Builds
 ------
 
