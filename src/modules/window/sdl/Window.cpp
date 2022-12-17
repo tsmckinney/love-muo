@@ -337,9 +337,9 @@ bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowfla
 			window = nullptr;
 		}
 		if (shaped)
-			window = SDL_CreateWindow(title.c_str(), x, y, w, h, windowflags);
-		else
 			window = SDL_CreateShapedWindow(title.c_str(), x, y, w, h, windowflags);
+		else
+			window = SDL_CreateWindow(title.c_str(), x, y, w, h, windowflags);
 		
 
 		if (!window)
@@ -770,8 +770,6 @@ void Window::updateSettings(const WindowSettings &newsettings, bool updateGraphi
 	settings.opacity = newsettings.opacity;
 	float fOpacity = (float)settings.opacity;
 	SDL_SetWindowOpacity(window, fOpacity);
-	settings.clickthrough = newsettings.clickthrough;
-	SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, settings.clickthrough?"1":"0");
 
 	SDL_DisplayMode dmode = {};
 	SDL_GetCurrentDisplayMode(settings.displayindex, &dmode);
