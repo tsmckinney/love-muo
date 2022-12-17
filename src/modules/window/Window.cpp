@@ -127,7 +127,7 @@ StringMap<Window::Setting, Window::SETTING_MAX_ENUM>::Entry Window::settingEntri
 	{"x", SETTING_X},
 	{"y", SETTING_Y},
 	{"opacity", SETTING_OPACITY},
-	{"clickthrough", SETTING_CLICKTHROUGH},
+	{"shaped", SETTING_SHAPED},
 };
 
 StringMap<Window::Setting, Window::SETTING_MAX_ENUM> Window::settings(Window::settingEntries, sizeof(Window::settingEntries));

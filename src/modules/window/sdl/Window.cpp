@@ -297,7 +297,7 @@ std::vector<Window::ContextAttribs> Window::getContextAttribsList() const
 	return attribslist;
 }
 
-bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, graphics::Renderer renderer)
+bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, graphics::Renderer renderer, bool shaped)
 {
 	bool needsglcontext = (windowflags & SDL_WINDOW_OPENGL) != 0;
 #ifdef LOVE_GRAPHICS_METAL
@@ -336,8 +336,11 @@ bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowfla
 			SDL_FlushEvent(SDL_WINDOWEVENT);
 			window = nullptr;
 		}
-
-		window = SDL_CreateWindow(title.c_str(), x, y, w, h, windowflags);
+		if (shaped)
+			window = SDL_CreateWindow(title.c_str(), x, y, w, h, windowflags);
+		else
+			window = SDL_CreateShapedWindow(title.c_str(), x, y, w, h, windowflags);
+		
 
 		if (!window)
 		{
@@ -592,12 +595,17 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 		if (f.borderless)
 			 sdlflags |= SDL_WINDOW_BORDERLESS;
+		bool shaped;
+		if (f.shaped)
+			shaped = true;
+		else
+			shaped = false;
 
 		// Note: this flag is ignored on Windows.
 		 if (isHighDPIAllowed())
 			 sdlflags |= SDL_WINDOW_ALLOW_HIGHDPI;
 
-		if (!createWindowAndContext(x, y, width, height, sdlflags, renderer))
+		if (!createWindowAndContext(x, y, width, height, sdlflags, renderer, shaped))
 			return false;
 
 		needsetmode = true;
@@ -613,7 +621,6 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 	SDL_SetWindowMinimumSize(window, f.minwidth, f.minheight);
 	float opacity = (float)f.opacity;
 	SDL_SetWindowOpacity(window, opacity);
-	SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, f.clickthrough?"1":"0");
 	if (this->settings.displayindex != f.displayindex || f.useposition || f.centered)
 		SDL_SetWindowPosition(window, x, y);
 

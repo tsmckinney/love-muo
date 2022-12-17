@@ -77,7 +77,7 @@ public:
 		SETTING_X,
 		SETTING_Y,
 		SETTING_OPACITY,
-		SETTING_CLICKTHROUGH,
+		SETTING_SHAPED,
 		SETTING_MAX_ENUM
 	};
 
@@ -277,7 +277,7 @@ struct WindowSettings
 	int x = 0;
 	int y = 0;
 	double opacity = 1.0;
-	bool clickthrough = false;
+	bool shaped = false;
 };
 
 } // window
