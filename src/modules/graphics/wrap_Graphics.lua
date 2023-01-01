@@ -3,7 +3,11 @@ R"luastring"--(
 -- There is a matching delimiter at the bottom of the file.
 
 --[[
+<<<<<<< HEAD
 Copyright (c) 2006-2022 LOVE Development Team
+=======
+Copyright (c) 2006-2023 LOVE Development Team
+>>>>>>> 22b6388a96735dc70f1b503de7c2b4bfd4d2d5bc
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
