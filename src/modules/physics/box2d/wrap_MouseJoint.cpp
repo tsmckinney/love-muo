@@ -65,7 +65,6 @@ int w_MouseJoint_getMaxForce(lua_State *L)
 	lua_pushnumber(L, t->getMaxForce());
 	return 1;
 }
-
 int w_MouseJoint_setStiffness(lua_State *L)
 {
 	MouseJoint *t = luax_checkmousejoint(L, 1);

@@ -1,5 +1,9 @@
 /**
+<<<<<<<<< Temporary merge branch 1
+ * Copyright (c) 2006-2022 LOVE Development Team
+=========
  * Copyright (c) 2006-2023 LOVE Development Team
+>>>>>>>>> Temporary merge branch 2
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages

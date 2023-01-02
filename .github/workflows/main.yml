@@ -98,7 +98,17 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       with:
+<<<<<<< HEAD
+        path: megasource/libs/love-muo
+    - name: Prepare Vulkan SDK
+      uses: humbletim/setup-vulkan-sdk@v1.2.0
+      with:
+        vulkan-query-version: 1.3.204.0
+        vulkan-components: Vulkan-Headers, Vulkan-Loader
+        vulkan-use-cache: true
+=======
         path: megasource/libs/love
+>>>>>>> 8cda22ef7deeea44b1b8220dcf2d29968420eb48
     - name: Download ANGLE
       uses: robinraju/release-downloader@v1.5
       if: steps.vars.outputs.angle == '1'
