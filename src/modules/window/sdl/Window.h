@@ -89,6 +89,7 @@ public:
 	void minimize() override;
 	void maximize() override;
 	void restore() override;
+	void focus() override;
 
 	bool isMaximized() const override;
 	bool isMinimized() const override;
