@@ -47,7 +47,6 @@
 #if defined(LOVE_ANDROID)
 #include "common/android.h"
 #elif defined(LOVE_LINUX)
-#include <unistd.h>
 #include <fcntl.h>
 
 #ifdef __has_include
@@ -130,8 +129,7 @@ std::string System::getUserName() const
 	LPWSTR userptr = wcharuser;
 	DWORD username_len = UNLEN+1;
 	GetUserNameW(userptr, &username_len);
-	if (GetLastError() == ERROR_MORE_DATA)
-	{
+	if (GetLastError() == ERROR_MORE_DATA){
 		char username[UNLEN+1];
 		EXTENDED_NAME_FORMAT userDispName = NameDisplay;
 		wchar_t wcharuser[20];
@@ -140,7 +138,6 @@ std::string System::getUserName() const
 		DWORD username_len = UNLEN+1;
 		GetUserNameExW(userDispName, userptr, &username_len);
 	}
-	
 	std::string userstr;
     userstr.reserve(wcslen(userptr));
     for (;*userptr; userptr++)
