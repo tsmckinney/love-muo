@@ -351,7 +351,7 @@ bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowfla
 
 		if (attribs != nullptr && renderer == love::graphics::Renderer::RENDERER_OPENGL)
 		{
-#ifdef LOVE_MACOS
+#ifdef LOVE_MACOSX
 			love::macos::setWindowSRGBColorSpace(window);
 #endif
 
