@@ -54,6 +54,13 @@ static void windowToDPICoords(double *x, double *y)
 		window->windowToDPICoords(x, y);
 }
 
+static void clampToWindow(double *x, double *y)
+{
+	auto window = Module::getInstance<window::Window>(Module::M_WINDOW);
+	if (window)
+		window->clampPositionInWindow(x, y);
+}
+
 #ifndef LOVE_MACOS
 static void normalizedToDPICoords(double *x, double *y)
 {
