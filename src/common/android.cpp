@@ -36,7 +36,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "filesystem/physfs/PhysfsIo.h"
+#include "libraries/physfs/physfs.h"
 
 namespace love
 {
@@ -685,7 +685,7 @@ bool checkFusedGame(void **physfsIO_Out)
 	asset = AAssetManager_open(assetManager, "game.love", AASSET_MODE_RANDOM);
 	if (asset)
 	{
-		io = aasset::io::fromAAsset(assetManager, "game.love", asset);
+		io = aasset::AssetInfo::fromAAsset(assetManager, "game.love", asset);
 		return true;
 	}
 
@@ -871,10 +871,6 @@ const char *getArg0()
 	};
 	return (const char *) &androidInit;
 }
-
-	return path;
-}
-
 } // android
 } // love
 
