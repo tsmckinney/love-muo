@@ -1,12 +1,13 @@
 LÖVE is an *awesome* framework you can use to make 2D games in Lua. It's free, open-source, and works on Windows, macOS, Linux, Android, and iOS.
 
+[![Build Status: Windows](https://ci.appveyor.com/api/projects/status/chc0hdr08wv1d5c7?svg=true)](https://ci.appveyor.com/project/slime73/love)
 [![Build Status: Github CI](https://github.com/love2d/love/workflows/continuous-integration/badge.svg)](https://github.com/love2d/love/actions?query=workflow%3Acontinuous-integration)
 
 Documentation
 -------------
 
 We use our [wiki][wiki] for documentation.
-If you need further help, feel free to ask on our [forums][forums], our [Discord server][discord], or our IRC channel [#love on OFTC][irc].
+If you need further help, feel free to ask on our [forums][forums], our [Discord server][discord], or our [subreddit][subreddit].
 
 Repository
 ----------
@@ -17,6 +18,9 @@ There may also be a branch for the next major version in development, which is n
 We tag all our releases (since we started using mercurial and git), and have binary downloads available for them.
 
 Experimental changes are developed in a separate [love-experiments][love-experiments] repository.
+
+(Update from tsmckinney: The changes I've made for Evertab are in a separate branch called evertab-changes. This is to make sure that I don't accidentally merge the 
+changes I made for Evertab into the actual project.)
 
 Builds
 ------
@@ -97,7 +101,7 @@ Dependencies
 [wiki]: https://love2d.org/wiki
 [forums]: https://love2d.org/forums
 [discord]: https://discord.gg/rhUets9
-[irc]: irc://irc.oftc.net/love
+[subreddit]: https://www.reddit.com/r/love2d
 [dependencies-apple]: https://github.com/love2d/love-apple-dependencies
 [dependencies-ios]: https://github.com/love2d/love/releases
 [megasource]: https://github.com/love2d/megasource

@@ -231,6 +231,9 @@ int w_getMode(lua_State *L)
 	lua_pushinteger(L, settings.y);
 	lua_setfield(L, -2, settingName(Window::SETTING_Y));
 
+	lua_pushnumber(L, settings.opacity);
+	lua_setfield(L, -2, settingName(Window::SETTING_OPACITY));
+
 	return 3;
 }
 
@@ -388,6 +391,21 @@ int w_getPosition(lua_State *L)
 	lua_pushinteger(L, y);
 	lua_pushinteger(L, displayindex + 1);
 	return 3;
+}
+int w_setOpacity(lua_State *L)
+{
+	double opacity = (double) luaL_checknumber(L, 1);
+
+	instance()->setOpacity(opacity);
+	return 0;
+}
+
+int w_getOpacity(lua_State *L)
+{
+	double opacity = 0;
+	instance()->getOpacity(opacity);
+	lua_pushnumber(L, opacity);
+	return 1;
 }
 
 int w_getSafeArea(lua_State *L)
@@ -655,6 +673,8 @@ static const luaL_Reg functions[] =
 	{ "getDesktopDimensions", w_getDesktopDimensions },
 	{ "setPosition", w_setPosition },
 	{ "getPosition", w_getPosition },
+	{ "setOpacity", w_setOpacity },
+	{ "getOpacity", w_getOpacity },
 	{ "getSafeArea", w_getSafeArea },
 	{ "setIcon", w_setIcon },
 	{ "getIcon", w_getIcon },

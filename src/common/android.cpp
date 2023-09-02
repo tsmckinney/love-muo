@@ -37,7 +37,6 @@
 #include <unistd.h>
 
 #include "libraries/physfs/physfs.h"
-#include "filesystem/physfs/PhysfsIo.h"
 
 namespace love
 {
@@ -678,8 +677,7 @@ bool checkFusedGame(void **physfsIO_Out)
 	AAsset *asset = AAssetManager_open(assetManager, "main.lua", AASSET_MODE_STREAMING);
 	if (asset)
 	{
-		AAsset_close(asset);
-		io = nullptr;
+		io = aasset::AssetInfo::fromAAsset(assetManager, "game.love", asset);
 		return true;
 	}
 
@@ -873,7 +871,6 @@ const char *getArg0()
 	};
 	return (const char *) &androidInit;
 }
-
 } // android
 } // love
 

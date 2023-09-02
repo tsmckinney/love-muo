@@ -142,7 +142,13 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       with:
-        path: megasource/libs/love
+        path: megasource/libs/love-evertab
+    - name: Prepare Vulkan SDK
+      uses: humbletim/setup-vulkan-sdk@v1.2.0
+      with:
+        vulkan-query-version: 1.3.204.0
+        vulkan-components: Vulkan-Headers, Vulkan-Loader
+        vulkan-use-cache: true
     - name: Download ANGLE
       uses: robinraju/release-downloader@v1.7
       if: steps.vars.outputs.angle == '1'

@@ -76,6 +76,8 @@ public:
 		SETTING_REFRESHRATE,
 		SETTING_X,
 		SETTING_Y,
+		SETTING_OPACITY,
+		SETTING_SHAPED,
 		SETTING_MAX_ENUM
 	};
 
@@ -158,6 +160,9 @@ public:
 
 	virtual void setPosition(int x, int y, int displayindex) = 0;
 	virtual void getPosition(int &x, int &y, int &displayindex) = 0;
+
+	virtual void setOpacity(double opacity) = 0;
+	virtual void getOpacity(double &opacity) = 0;
 
 	virtual Rect getSafeArea() const = 0;
 
@@ -274,6 +279,8 @@ struct WindowSettings
 	bool useposition = false;
 	int x = 0;
 	int y = 0;
+	double opacity = 1.0;
+	bool shaped = false;
 };
 
 } // window
