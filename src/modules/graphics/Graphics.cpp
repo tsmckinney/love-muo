@@ -925,7 +925,7 @@ void Graphics::setRenderTargets(const RenderTargets &rts)
 		PixelFormat dsformat = PIXELFORMAT_STENCIL8;
 		if (wantsdepth && wantsstencil)
 			dsformat = PIXELFORMAT_DEPTH24_UNORM_STENCIL8;
-		else if (wantsdepth && isPixelFormatSupported(PIXELFORMAT_DEPTH24_UNORM, PIXELFORMATUSAGEFLAGS_RENDERTARGET, false))
+		else if (wantsdepth && isPixelFormatSupported(PIXELFORMAT_DEPTH24_UNORM, PIXELFORMATUSAGEFLAGS_RENDERTARGET))
 			dsformat = PIXELFORMAT_DEPTH24_UNORM;
 		else if (wantsdepth)
 			dsformat = PIXELFORMAT_DEPTH16_UNORM;
@@ -2387,6 +2387,22 @@ void Graphics::polygon(DrawMode mode, const Vector2 *coords, size_t count, bool 
 const Graphics::Capabilities &Graphics::getCapabilities() const
 {
 	return capabilities;
+}
+
+PixelFormat Graphics::getSizedFormat(PixelFormat format) const
+{
+	switch (format)
+	{
+	case PIXELFORMAT_NORMAL:
+		if (isGammaCorrect())
+			return PIXELFORMAT_RGBA8_sRGB;
+		else
+			return PIXELFORMAT_RGBA8_UNORM;
+	case PIXELFORMAT_HDR:
+		return PIXELFORMAT_RGBA16_FLOAT;
+	default:
+		return format;
+	}
 }
 
 Graphics::Stats Graphics::getStats() const
