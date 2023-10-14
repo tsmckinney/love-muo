@@ -78,33 +78,38 @@ static GLenum createFBO(GLuint &framebuffer, TextureType texType, PixelFormat fo
 						gl.framebufferTexture(attachment, texType, texture, mip, layer, face);
 					}
 
-					if (clear)
+					if (clear && isPixelFormatInteger(format))
 					{
-						if (isPixelFormatDepthStencil(format))
+						PixelFormatType datatype = getPixelFormatInfo(format).dataType;
+						if (datatype == PIXELFORMATTYPE_SINT)
 						{
-							bool hadDepthWrites = gl.hasDepthWrites();
-							if (!hadDepthWrites) // glDepthMask also affects glClear.
-								gl.setDepthWrites(true);
+							const GLint carray[] = { 0, 0, 0, 0 };
+							glClearBufferiv(GL_COLOR, 0, carray);
+						}
+						else
+						{
+							const GLuint carray[] = { 0, 0, 0, 0 };
+							glClearBufferuiv(GL_COLOR, 0, carray);
+						}
+					}
+					else if (clear)
+					{
+						bool ds = isPixelFormatDepthStencil(format);
 
-							uint32 stencilwrite = gl.getStencilWriteMask();
-							if (stencilwrite != LOVE_UINT32_MAX)
-								gl.setStencilWriteMask(LOVE_UINT32_MAX);
+						GLbitfield clearflags = ds ? GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT;
+						OpenGL::CleanClearState cleanClearState(clearflags);
 
+						if (ds)
+						{
 							gl.clearDepth(1.0);
 							glClearStencil(0);
-							glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-							if (!hadDepthWrites)
-								gl.setDepthWrites(hadDepthWrites);
-
-							if (stencilwrite != LOVE_UINT32_MAX)
-								gl.setStencilWriteMask(stencilwrite);
 						}
 						else
 						{
 							glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-							glClear(GL_COLOR_BUFFER_BIT);
 						}
+
+						glClear(clearflags);
 					}
 				}
 			}
@@ -167,24 +172,39 @@ static GLenum newRenderbuffer(int width, int height, int &samples, PixelFormat p
 
 	if (status == GL_FRAMEBUFFER_COMPLETE)
 	{
-		if (isPixelFormatDepthStencil(pixelformat))
+		if (isPixelFormatInteger(pixelformat))
 		{
-			bool hadDepthWrites = gl.hasDepthWrites();
-			if (!hadDepthWrites) // glDepthMask also affects glClear.
-				gl.setDepthWrites(true);
-
-			gl.clearDepth(1.0);
-			glClearStencil(0);
-			glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-			if (!hadDepthWrites)
-				gl.setDepthWrites(hadDepthWrites);
+			PixelFormatType datatype = getPixelFormatInfo(pixelformat).dataType;
+			if (datatype == PIXELFORMATTYPE_SINT)
+			{
+				const GLint carray[] = { 0, 0, 0, 0 };
+				glClearBufferiv(GL_COLOR, 0, carray);
+			}
+			else
+			{
+				const GLuint carray[] = { 0, 0, 0, 0 };
+				glClearBufferuiv(GL_COLOR, 0, carray);
+			}
 		}
 		else
 		{
-			// Initialize the buffer to transparent black.
-			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-			glClear(GL_COLOR_BUFFER_BIT);
+			bool ds = isPixelFormatDepthStencil(pixelformat);
+
+			GLbitfield clearflags = ds ? GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT : GL_COLOR_BUFFER_BIT;
+			OpenGL::CleanClearState cleanClearState(clearflags);
+
+			if (ds)
+			{
+				gl.clearDepth(1.0);
+				glClearStencil(0);
+			}
+			else
+			{
+				// Initialize the buffer to transparent black.
+				glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+			}
+
+			glClear(clearflags);
 		}
 	}
 	else
