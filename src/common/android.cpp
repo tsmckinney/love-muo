@@ -865,10 +865,9 @@ void *getIOFromFD(int fd)
 
 const char *getArg0()
 {
-	static PHYSFS_AndroidInit androidInit = {
-		SDL_AndroidGetJNIEnv(),
-		SDL_AndroidGetActivity()
-	};
+	static PHYSFS_AndroidInit androidInit = {nullptr, nullptr};
+	androidInit.jnienv = SDL_AndroidGetJNIEnv();
+	androidInit.context = SDL_AndroidGetActivity();
 	return (const char *) &androidInit;
 }
 } // android
