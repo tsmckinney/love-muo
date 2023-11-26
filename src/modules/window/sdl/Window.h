@@ -67,8 +67,6 @@ public:
 
 	void setPosition(int x, int y, int displayindex) override;
 	void getPosition(int &x, int &y, int &displayindex) override;
-	void setOpacity(double opacity) override;
-	void getOpacity(double &opacity) override;
 
 	Rect getSafeArea() const override;
 
@@ -150,7 +148,7 @@ private:
 	void setGLContextAttributes(const ContextAttribs &attribs);
 	bool checkGLVersion(const ContextAttribs &attribs, std::string &outversion);
 	std::vector<ContextAttribs> getContextAttribsList() const;
-	bool createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, graphics::Renderer renderer, bool shaped);
+	bool createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, graphics::Renderer renderer);
 
 	// Update the saved window settings based on the window's actual state.
 	void updateSettings(const WindowSettings &newsettings, bool updateGraphicsViewport);

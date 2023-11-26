@@ -126,8 +126,6 @@ StringMap<Window::Setting, Window::SETTING_MAX_ENUM>::Entry Window::settingEntri
 	{"refreshrate", SETTING_REFRESHRATE},
 	{"x", SETTING_X},
 	{"y", SETTING_Y},
-	{"opacity", SETTING_OPACITY},
-	{"shaped", SETTING_SHAPED},
 };
 
 StringMap<Window::Setting, Window::SETTING_MAX_ENUM> Window::settings(Window::settingEntries, sizeof(Window::settingEntries));

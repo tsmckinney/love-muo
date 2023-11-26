@@ -298,7 +298,7 @@ std::vector<Window::ContextAttribs> Window::getContextAttribsList() const
 	return attribslist;
 }
 
-bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, graphics::Renderer renderer, bool shaped)
+bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowflags, graphics::Renderer renderer)
 {
 	bool needsglcontext = (windowflags & SDL_WINDOW_OPENGL) != 0;
 #ifdef LOVE_GRAPHICS_METAL
@@ -337,10 +337,7 @@ bool Window::createWindowAndContext(int x, int y, int w, int h, Uint32 windowfla
 			SDL_FlushEvent(SDL_WINDOWEVENT);
 			window = nullptr;
 		}
-		if (shaped)
-			window = SDL_CreateShapedWindow(title.c_str(), x, y, w, h, windowflags);
-		else
-			window = SDL_CreateWindow(title.c_str(), x, y, w, h, windowflags);
+		window = SDL_CreateWindow(title.c_str(), x, y, w, h, windowflags);
 		
 
 		if (!window)
@@ -596,17 +593,12 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 		if (f.borderless)
 			 sdlflags |= SDL_WINDOW_BORDERLESS;
-		bool shaped;
-		if (f.shaped)
-			shaped = true;
-		else
-			shaped = false;
 
 		// Note: this flag is ignored on Windows.
 		 if (isHighDPIAllowed())
 			 sdlflags |= SDL_WINDOW_ALLOW_HIGHDPI;
 
-		if (!createWindowAndContext(x, y, width, height, sdlflags, renderer, shaped))
+		if (!createWindowAndContext(x, y, width, height, sdlflags, renderer))
 			return false;
 
 		needsetmode = true;
@@ -620,8 +612,6 @@ bool Window::setWindow(int width, int height, WindowSettings *settings)
 
 	// Enforce minimum window dimensions.
 	SDL_SetWindowMinimumSize(window, f.minwidth, f.minheight);
-	float opacity = (float)f.opacity;
-	SDL_SetWindowOpacity(window, opacity);
 	if (this->settings.displayindex != f.displayindex || f.useposition || f.centered)
 		SDL_SetWindowPosition(window, x, y);
 
@@ -768,9 +758,6 @@ void Window::updateSettings(const WindowSettings &newsettings, bool updateGraphi
 
 	settings.stencil = newsettings.stencil;
 	settings.depth = newsettings.depth;
-	settings.opacity = newsettings.opacity;
-	float fOpacity = (float)settings.opacity;
-	SDL_SetWindowOpacity(window, fOpacity);
 
 	SDL_DisplayMode dmode = {};
 	SDL_GetCurrentDisplayMode(settings.displayindex, &dmode);
@@ -1001,29 +988,6 @@ void Window::getPosition(int &x, int &y, int &displayindex)
 		y -= displaybounds.y;
 	}
 }
-
-void Window::setOpacity(double opacity)
-{
-	if (!window)
-		return;
-
-	float fOpacity = (float)opacity;
-	SDL_SetWindowOpacity(window, fOpacity);
-	settings.opacity = opacity;
-}
-
-void Window::getOpacity(double &opacity)
-{
-	if (!window)
-	{
-		opacity = 1;
-		return;
-	}
-	float fOpacity[1] = {(float)opacity};
-	float* fOpacityPoint = fOpacity;
-	SDL_GetWindowOpacity(window, fOpacityPoint);
-}
-
 Rect Window::getSafeArea() const
 {
 #if defined(LOVE_IOS)
