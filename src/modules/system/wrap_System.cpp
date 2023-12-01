@@ -34,11 +34,6 @@ int w_getOS(lua_State *L)
 	luax_pushstring(L, System::getOS());
 	return 1;
 }
-int w_getUserName(lua_State *L)
-{
-	luax_pushstring(L, instance()->getUserName());
-	return 1;
-}
 
 int w_getProcessorCount(lua_State *L)
 {
@@ -125,7 +120,6 @@ int w_getPreferredLocales(lua_State* L)
 static const luaL_Reg functions[] =
 {
 	{ "getOS", w_getOS },
-	{ "getUserName", w_getUserName },
 	{ "getProcessorCount", w_getProcessorCount },
 	{ "setClipboardText", w_setClipboardText },
 	{ "getClipboardText", w_getClipboardText },
