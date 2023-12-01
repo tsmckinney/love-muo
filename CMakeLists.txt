@@ -1970,6 +1970,12 @@ if(MSVC OR MINGW)
 		extra/windows/love.rc
 		extra/windows/love.ico
 	)
+
+	if(MINGW)
+		# UTF-16 flags passed to windres. windres invokes gcc as preprocessor
+		# -> gcc outputs utf8, so windres must read-in codepage 65001 (utf8)
+		set(CMAKE_RC_FLAGS ${CMAKE_RC_FLAGS} "-c 65001 --preprocessor-arg=-finput-charset=UTF-16LE")
+	endif()
 endif()
 
 if(ANDROID)
