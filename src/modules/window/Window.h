@@ -76,6 +76,8 @@ public:
 		SETTING_REFRESHRATE,
 		SETTING_X,
 		SETTING_Y,
+		SETTING_OPACITY,
+		SETTING_SHAPED,
 		SETTING_MAX_ENUM
 	};
 
@@ -138,6 +140,8 @@ public:
 
 	virtual bool setWindow(int width = 800, int height = 600, WindowSettings *settings = nullptr) = 0;
 	virtual void getWindow(int &width, int &height, WindowSettings &settings) = 0;
+	virtual void setOpacity(double opacity) = 0;
+	virtual void getOpacity(double &opacity) = 0;
 
 	virtual void close() = 0;
 
@@ -274,6 +278,8 @@ struct WindowSettings
 	bool useposition = false;
 	int x = 0;
 	int y = 0;
+	double opacity = 1.0;
+	bool shaped = false;
 };
 
 } // window

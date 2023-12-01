@@ -24,6 +24,8 @@
 
 #if defined(LOVE_MACOS)
 #include <CoreServices/CoreServices.h>
+#include <unistd.h>
+#include <fcntl.h>
 #elif defined(LOVE_IOS)
 #include "common/ios.h"
 #elif defined(LOVE_LINUX) || defined(LOVE_ANDROID)
@@ -34,6 +36,12 @@
 #include "common/utf8.h"
 #include <shlobj.h>
 #include <shellapi.h>
+#include <windows.h>
+#include <Lmcons.h>
+#define SECURITY_WIN32
+#include <security.h>
+#include <iostream>
+#include <secext.h>
 #pragma comment(lib, "shell32.lib")
 #endif
 #if defined(LOVE_ANDROID)
@@ -79,6 +87,70 @@ const char *System::getOS()
 	return "Linux";
 #else
 	return "Unknown";
+#endif
+}
+std::string System::getUserName() const
+{
+#if defined(LOVE_MACOS)
+	struct passwd *passwd;
+	passwd = getpwuid ( geteuid()); 
+	std::string userstr = passwd.pw_name;
+	return userstr;
+#elif defined(LOVE_IOS)
+	return "Player";
+#elif defined(LOVE_WINDOWS_UWP)
+	char username[UNLEN+1];
+	wchar_t wcharuser[20];
+	mbstowcs(wcharuser, username, strlen(username)+1);//Plus null
+	LPWSTR userptr = wcharuser;
+	DWORD username_len = UNLEN+1;
+	GetUserNameW(userptr, &username_len);
+	if (GetLastError() == ERROR_MORE_DATA)
+	{
+		char username[UNLEN+1];
+		EXTENDED_NAME_FORMAT userDispName = NameDisplay;
+		wchar_t wcharuser[20];
+		mbstowcs(wcharuser, username, strlen(username)+1);//Plus null
+		LPWSTR userptr = wcharuser;
+		DWORD username_len = UNLEN+1;
+		GetUserNameExW(userDispName, userptr, &username_len);
+	}
+
+	std::string userstr;
+    userstr.reserve(wcslen(userptr));
+    for (;*userptr; userptr++)
+        userstr += (char)*userptr;
+	return userstr;
+#elif defined(LOVE_WINDOWS)
+	char username[UNLEN+1];
+	wchar_t wcharuser[20];
+	mbstowcs(wcharuser, username, strlen(username)+1);//Plus null
+	LPWSTR userptr = wcharuser;
+	DWORD username_len = UNLEN+1;
+	GetUserNameW(userptr, &username_len);
+	if (GetLastError() == ERROR_MORE_DATA){
+		char username[UNLEN+1];
+		EXTENDED_NAME_FORMAT userDispName = NameDisplay;
+		wchar_t wcharuser[20];
+		mbstowcs(wcharuser, username, strlen(username)+1);//Plus null
+		LPWSTR userptr = wcharuser;
+		DWORD username_len = UNLEN+1;
+		GetUserNameExW(userDispName, userptr, &username_len);
+	}
+	std::string userstr;
+    userstr.reserve(wcslen(userptr));
+    for (;*userptr; userptr++)
+        userstr += (char)*userptr;
+	return userstr;
+#elif defined(LOVE_ANDROID)
+	return "Player";
+#elif defined(LOVE_LINUX)
+	struct passwd *passwd;
+	passwd = getpwuid ( getuid()); 
+	std::string userstr = passwd.pw_name;
+	return userstr;
+#else
+	return "Player";
 #endif
 }
 

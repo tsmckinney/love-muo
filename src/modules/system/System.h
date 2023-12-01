@@ -60,6 +60,13 @@ public:
 	static const char *getOS();
 
 	/**
+	 * Gets the user's name.
+	 * Stack Overflow and the Microsoft Windows.h Wiki helped, as well as the IBM unix docs!
+	**/
+	std::string getUserName() const;
+
+
+	/**
 	 * Gets the number of reported CPU cores on the current system.
 	 * Does not account for technologies such as Hyperthreading: a 4-core
 	 * Hyperthreading-enabled Intel CPU will report 8, instead of 4.
