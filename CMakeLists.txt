@@ -41,6 +41,12 @@ if(APPLE)
 	message(WARNING "Use the prebuilt .app or the xcode project in platform/xcode/ instead.")
 endif()
 
+if(MINGW)
+	message(WARNING "MinGW is not an officially supported build system for love.")
+	message(WARNING "Use megasource with Visual Studio instead.")
+	message(WARNING "Please see https://github.com/love2d/megasource")
+endif()
+
 if(MSVC OR MINGW)
 	set(LOVE_CONSOLE_EXE_NAME lovec)
 endif()
@@ -168,7 +174,7 @@ if(MEGA)
 else()
 	if(MSVC OR ANDROID)
 		message(FATAL_ERROR "
-It is currently only possible to build with megasource or (experimental) mingw on Windows and Android.
+It is currently only possible to build with megasource on Windows and Android, or (experimental) mingw on Windows.
 Please see https://github.com/love2d/megasource
 ")
 	endif()
@@ -178,7 +184,7 @@ Please see https://github.com/love2d/megasource
 	find_package(ModPlug REQUIRED)
 	find_package(OpenAL REQUIRED)
 	find_package(OpenGL REQUIRED)
-	find_package(SDL2 REQUIRED CONFIG COMPONENTS SDL2main)
+	find_package(SDL2 2.0.9 REQUIRED CONFIG COMPONENTS SDL2main)
 	find_package(Theora REQUIRED)
 	find_package(Vorbis REQUIRED)
 	find_package(ZLIB REQUIRED)
