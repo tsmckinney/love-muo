@@ -27,6 +27,13 @@ love.test.system.getOS = function(test)
   local options = {'OS X', 'Windows', 'Linux', 'Android', 'iOS'}
   test:assertMatch(options, os, 'check value matches')
 end
+-- love.system.getUsername
+love.test.system.getUserName = function(test)
+  -- check system username is detected
+  local userName = love.system.getUserName()
+  test:assertNotNil(userName)
+end
+
 
 
 -- love.system.getPowerInfo
