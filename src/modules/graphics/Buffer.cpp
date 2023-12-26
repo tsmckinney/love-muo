@@ -29,16 +29,19 @@ namespace graphics
 
 love::Type Buffer::type("GraphicsBuffer", &Object::type);
 
+int Buffer::bufferCount = 0;
+int64 Buffer::totalGraphicsMemory = 0;
+
 Buffer::Buffer(Graphics *gfx, const Settings &settings, const std::vector<DataDeclaration> &bufferformat, size_t size, size_t arraylength)
 	: arrayLength(0)
 	, arrayStride(0)
 	, size(size)
 	, usageFlags(settings.usageFlags)
 	, dataUsage(settings.dataUsage)
+	, debugName(settings.debugName)
 	, mapped(false)
 	, mappedType(MAP_WRITE_INVALIDATE)
 	, immutable(false)
-	, debugName(settings.debugName)
 {
 	if (size == 0 && arraylength == 0)
 		throw love::Exception("Size or array length must be specified.");
@@ -240,10 +243,15 @@ Buffer::Buffer(Graphics *gfx, const Settings &settings, const std::vector<DataDe
 	if (texelbuffer && arraylength * dataMembers.size() > caps.limits[Graphics::LIMIT_TEXEL_BUFFER_SIZE])
 		throw love::Exception("Cannot create texel buffer: total number of values in the buffer (%d * %d) is too large for this system (maximum %d).",
 			(int) dataMembers.size(), (int) arraylength, caps.limits[Graphics::LIMIT_TEXEL_BUFFER_SIZE]);
+
+	++bufferCount;
+	totalGraphicsMemory += size;
 }
 
 Buffer::~Buffer()
 {
+	totalGraphicsMemory -= size;
+	--bufferCount;
 }
 
 int Buffer::getDataMemberIndex(const std::string &name) const
