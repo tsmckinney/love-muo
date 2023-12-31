@@ -43,8 +43,8 @@ static bool isBuffer(Shader::UniformType utype)
 	return utype == Shader::UNIFORM_TEXELBUFFER || utype == Shader::UNIFORM_STORAGEBUFFER;
 }
 
-Shader::Shader(StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM])
-	: love::graphics::Shader(stages)
+Shader::Shader(StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM], const CompileOptions &options)
+	: love::graphics::Shader(stages, options)
 	, program(0)
 	, splitUniformsPerDraw(false)
 	, builtinUniforms()
@@ -110,6 +110,8 @@ void Shader::mapActiveUniforms()
 	std::map<std::string, UniformInfo> olduniforms = uniforms;
 	uniforms.clear();
 
+	auto gfx = Module::getInstance<love::graphics::Graphics>(Module::M_GRAPHICS);
+
 	for (int uindex = 0; uindex < numuniforms; uindex++)
 	{
 		GLsizei namelen = 0;
@@ -140,7 +142,7 @@ void Shader::mapActiveUniforms()
 			continue;
 
 		if (!fillUniformReflectionData(u))
-			continue;;
+			continue;
 
 		if ((u.baseType == UNIFORM_SAMPLER && builtin != BUILTIN_TEXTURE_MAIN) || u.baseType == UNIFORM_TEXELBUFFER)
 		{
@@ -156,7 +158,7 @@ void Shader::mapActiveUniforms()
 			else
 			{
 				unit.isTexelBuffer = false;
-				unit.texture = gl.getDefaultTexture(u.textureType, u.dataBaseType);
+				unit.texture = 0; // Handled below.
 			}
 
 			for (int i = 0; i < u.count; i++)
@@ -165,7 +167,7 @@ void Shader::mapActiveUniforms()
 		else if (u.baseType == UNIFORM_STORAGETEXTURE)
 		{
 			StorageTextureBinding binding = {};
-			binding.gltexture = gl.getDefaultTexture(u.textureType, u.dataBaseType);
+			binding.gltexture = 0; // Handled below.
 			binding.type = u.textureType;
 
 			if ((u.access & (ACCESS_READ | ACCESS_WRITE)) != 0)
@@ -247,7 +249,13 @@ void Shader::mapActiveUniforms()
 					else
 					{
 						u.textures = new love::graphics::Texture*[u.count];
-						memset(u.textures, 0, sizeof(Texture *) * u.count);
+
+						auto *tex = gfx->getDefaultTexture(u.textureType, u.dataBaseType);
+						for (int i = 0; i < u.count; i++)
+						{
+							tex->retain();
+							u.textures[i] = tex;
+						}
 					}
 				}
 				else if (u.baseType == UNIFORM_STORAGETEXTURE)
@@ -259,7 +267,20 @@ void Shader::mapActiveUniforms()
 					glUniform1iv(u.location, u.count, u.ints);
 
 					u.textures = new love::graphics::Texture*[u.count];
-					memset(u.textures, 0, sizeof(Texture *) * u.count);
+
+					if ((u.access & ACCESS_WRITE) != 0)
+					{
+						memset(u.textures, 0, sizeof(Texture *) * u.count);
+					}
+					else
+					{
+						auto *tex = gfx->getDefaultTexture(u.textureType, u.dataBaseType);
+						for (int i = 0; i < u.count; i++)
+						{
+							tex->retain();
+							u.textures[i] = tex;
+						}
+					}
 				}
 			}
 
@@ -490,6 +511,9 @@ bool Shader::loadVolatile()
 
 	if (program == 0)
 		throw love::Exception("Cannot create shader program object.");
+
+	if (!debugName.empty() && (GLAD_VERSION_4_3 || GLAD_ES_VERSION_3_2))
+		glObjectLabel(GL_PROGRAM, program, -1, debugName.c_str());
 
 	for (const auto &stage : stages)
 	{
@@ -777,8 +801,14 @@ void Shader::sendTextures(const UniformInfo *info, love::graphics::Texture **tex
 		{
 			if (!validateTexture(info, tex, internalUpdate))
 				continue;
-			tex->retain();
 		}
+		else
+		{
+			auto gfx = Module::getInstance<love::graphics::Graphics>(Module::M_GRAPHICS);
+			tex = gfx->getDefaultTexture(info->textureType, info->dataBaseType);
+		}
+
+		tex->retain();
 
 		if (info->textures[i] != nullptr)
 			info->textures[i]->release();
@@ -787,11 +817,7 @@ void Shader::sendTextures(const UniformInfo *info, love::graphics::Texture **tex
 
 		if (isstoragetex)
 		{
-			GLuint gltex = 0;
-			if (tex != nullptr)
-				gltex = (GLuint) tex->getHandle();
-			else
-				gltex = gl.getDefaultTexture(info->textureType, info->dataBaseType);
+			GLuint gltex = (GLuint) tex->getHandle();
 
 			int bindingindex = info->ints[i];
 			auto &binding = storageTextureBindings[bindingindex];
@@ -804,11 +830,7 @@ void Shader::sendTextures(const UniformInfo *info, love::graphics::Texture **tex
 		}
 		else
 		{
-			GLuint gltex = 0;
-			if (textures[i] != nullptr)
-				gltex = (GLuint) tex->getHandle();
-			else
-				gltex = gl.getDefaultTexture(info->textureType, info->dataBaseType);
+			GLuint gltex = (GLuint) tex->getHandle();
 
 			int texunit = info->ints[i];
 

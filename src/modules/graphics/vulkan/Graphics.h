@@ -328,7 +328,7 @@ public:
 
 protected:
 	graphics::ShaderStage *newShaderStageInternal(ShaderStageType stage, const std::string &cachekey, const std::string &source, bool gles) override;
-	graphics::Shader *newShaderInternal(StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM]) override;
+	graphics::Shader *newShaderInternal(StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM], const Shader::CompileOptions &options) override;
 	graphics::StreamBuffer *newStreamBuffer(BufferUsage type, size_t size) override;
 	bool dispatch(love::graphics::Shader *shader, int x, int y, int z) override;
 	bool dispatch(love::graphics::Shader *shader, love::graphics::Buffer *indirectargs, size_t argsoffset) override;
@@ -367,7 +367,6 @@ private:
 	void createCommandPool();
 	void createCommandBuffers();
 	void createSyncObjects();
-	void createDefaultTexture();
 	void cleanup();
 	void cleanupSwapChain();
 	void recreateSwapChain();
@@ -442,7 +441,6 @@ private:
 	bool swapChainRecreationRequested = false;
 	bool transitionColorDepthLayouts = false;
 	VmaAllocator vmaAllocator = VK_NULL_HANDLE;
-	StrongRef<love::graphics::Texture> defaultTexture;
 	StrongRef<love::graphics::Buffer> defaultConstantColor;
 	StrongRef<love::graphics::Buffer> defaultConstantTexCoord;
 	// functions that need to be called to cleanup objects that were needed for rendering a frame.

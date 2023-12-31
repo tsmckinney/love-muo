@@ -487,6 +487,9 @@ public:
 
 	bool validateShader(bool gles, const std::vector<std::string> &stages, const Shader::CompileOptions &options, std::string &err);
 
+	Texture *getDefaultTexture(TextureType type, DataBaseType dataType);
+	Texture *getTextureOrDefaultForActiveShader(Texture *tex);
+
 	/**
 	 * Resets the current color, background color, line style, and so forth.
 	 **/
@@ -1017,7 +1020,7 @@ protected:
 
 	ShaderStage *newShaderStage(ShaderStageType stage, const std::string &source, const Shader::CompileOptions &options, const Shader::SourceInfo &info, bool cache);
 	virtual ShaderStage *newShaderStageInternal(ShaderStageType stage, const std::string &cachekey, const std::string &source, bool gles) = 0;
-	virtual Shader *newShaderInternal(StrongRef<ShaderStage> stages[SHADERSTAGE_MAX_ENUM]) = 0;
+	virtual Shader *newShaderInternal(StrongRef<ShaderStage> stages[SHADERSTAGE_MAX_ENUM], const Shader::CompileOptions &options) = 0;
 	virtual StreamBuffer *newStreamBuffer(BufferUsage type, size_t size) = 0;
 
 	virtual GraphicsReadback *newReadbackInternal(ReadbackMethod method, Buffer *buffer, size_t offset, size_t size, data::ByteData *dest, size_t destoffset) = 0;
@@ -1038,6 +1041,8 @@ protected:
 	void clearTemporaryResources();
 
 	void updatePendingReadbacks();
+
+	void releaseDefaultResources();
 
 	void restoreState(const DisplayState &s);
 	void restoreStateChecked(const DisplayState &s);
@@ -1093,6 +1098,8 @@ private:
 
 	void checkSetDefaultFont();
 	int calculateEllipsePoints(float rx, float ry) const;
+
+	Texture *defaultTextures[TEXTURE_MAX_ENUM][DATA_BASETYPE_MAX_ENUM];
 
 	std::vector<uint8> scratchBuffer;
 

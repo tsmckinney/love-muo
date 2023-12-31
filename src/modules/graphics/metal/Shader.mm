@@ -249,8 +249,8 @@ static EShLanguage getGLSLangStage(ShaderStageType stage)
 	return EShLangCount;
 }
 
-Shader::Shader(id<MTLDevice> device, StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM])
-	: love::graphics::Shader(stages)
+Shader::Shader(id<MTLDevice> device, StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM], const CompileOptions &options)
+	: love::graphics::Shader(stages, options)
 	, functions()
 	, builtinUniformInfo()
 	, localUniformStagingData(nullptr)
@@ -524,7 +524,7 @@ void Shader::addImage(const spirv_cross::CompilerMSL &msl, const spirv_cross::Re
 
 	if (u.baseType == UNIFORM_SAMPLER)
 	{
-		auto tex = Graphics::getInstance()->getDefaultTexture(u.textureType);
+		auto tex = Graphics::getInstance()->getDefaultTexture(u.textureType, u.dataBaseType);
 		for (int i = 0; i < u.count; i++)
 		{
 			tex->retain();
@@ -538,8 +538,15 @@ void Shader::addImage(const spirv_cross::CompilerMSL &msl, const spirv_cross::Re
 	}
 	else if (u.baseType == UNIFORM_STORAGETEXTURE)
 	{
+		Texture *tex = nullptr;
+		if ((u.access & ACCESS_WRITE) == 0)
+			tex = Graphics::getInstance()->getDefaultTexture(u.textureType, u.dataBaseType);
 		for (int i = 0; i < u.count; i++)
-			u.textures[i] = nullptr;
+		{
+			if (tex)
+				tex->retain();
+			u.textures[i] = tex;
+		}
 	}
 
 	uniforms[u.name] = u;
@@ -751,6 +758,10 @@ void Shader::compileFromGLSLang(id<MTLDevice> device, const glslang::TProgram &p
 			}
 
 			functions[stageindex] = [library newFunctionWithName:library.functionNames[0]];
+
+			std::string debugname = getShaderStageDebugName((ShaderStageType)stageindex);
+			if (!debugname.empty())
+				functions[stageindex].label = @(debugname.c_str());
 
 			auto setTextureBinding = [this](CompilerMSL &msl, int stageindex, const spirv_cross::Resource &resource) -> void
 			{
@@ -983,7 +994,7 @@ void Shader::sendTextures(const UniformInfo *info, love::graphics::Texture **tex
 		else
 		{
 			auto gfx = Graphics::getInstance();
-			tex = gfx->getDefaultTexture(info->textureType);
+			tex = gfx->getDefaultTexture(info->textureType, info->dataBaseType);
 		}
 
 		tex->retain();
