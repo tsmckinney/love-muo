@@ -139,7 +139,6 @@ public:
 
 	StreamBuffer *getUniformBuffer() const { return uniformBuffer; }
 	Buffer *getDefaultAttributesBuffer() const { return defaultAttributesBuffer; }
-	Texture *getDefaultTexture(TextureType textype) const { return defaultTextures[textype]; }
 
 	int getClosestMSAASamples(int requestedsamples);
 
@@ -197,7 +196,7 @@ private:
 	};
 
 	love::graphics::ShaderStage *newShaderStageInternal(ShaderStageType stage, const std::string &cachekey, const std::string &source, bool gles) override;
-	love::graphics::Shader *newShaderInternal(StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM]) override;
+	love::graphics::Shader *newShaderInternal(StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM], const Shader::CompileOptions &options) override;
 	love::graphics::StreamBuffer *newStreamBuffer(BufferUsage usage, size_t size) override;
 
 	love::graphics::GraphicsReadback *newReadbackInternal(ReadbackMethod method, love::graphics::Buffer *buffer, size_t offset, size_t size, data::ByteData *dest, size_t destoffset) override;
@@ -246,8 +245,6 @@ private:
 	size_t uniformBufferOffset;
 
 	Buffer *defaultAttributesBuffer;
-
-	Texture *defaultTextures[TEXTURE_MAX_ENUM];
 
 	std::map<uint64, void *> cachedSamplers;
 	std::unordered_map<uint64, void *> cachedDepthStencilStates;

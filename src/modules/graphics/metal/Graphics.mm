@@ -281,7 +281,6 @@ Graphics::Graphics()
 	, renderBindings()
 	, uniformBufferOffset(0)
 	, defaultAttributesBuffer(nullptr)
-	, defaultTextures()
 	, families()
 { @autoreleasepool {
 	if (@available(macOS 10.15, iOS 13.0, *))
@@ -344,17 +343,6 @@ Graphics::Graphics()
 		Buffer::Settings attribsettings(BUFFERUSAGEFLAG_VERTEX, BUFFERDATAUSAGE_STATIC);
 
 		defaultAttributesBuffer = newBuffer(attribsettings, dataformat, &defaults, sizeof(DefaultVertexAttributes), 0);
-	}
-
-	uint8 defaultpixel[] = {255, 255, 255, 255};
-	for (int i = 0; i < TEXTURE_MAX_ENUM; i++)
-	{
-		Texture::Settings settings;
-		settings.type = (TextureType) i;
-		settings.format = PIXELFORMAT_RGBA8_UNORM;
-		defaultTextures[i] = newTexture(settings);
-		Rect r = {0, 0, 1, 1};
-		defaultTextures[i]->replacePixels(defaultpixel, sizeof(defaultpixel), 0, 0, r, false);
 	}
 
 	if (batchedDrawState.vb[0] == nullptr)
@@ -426,9 +414,6 @@ Graphics::~Graphics()
 	commandQueue = nil;
 	device = nil;
 
-	for (int i = 0; i < TEXTURE_MAX_ENUM; i++)
-		defaultTextures[i]->release();
-
 	for (auto &kvp : cachedSamplers)
 		CFBridgingRelease(kvp.second);
 
@@ -453,9 +438,9 @@ love::graphics::ShaderStage *Graphics::newShaderStageInternal(ShaderStageType st
 	return new ShaderStage(this, stage, source, gles, cachekey);
 }
 
-love::graphics::Shader *Graphics::newShaderInternal(StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM])
+love::graphics::Shader *Graphics::newShaderInternal(StrongRef<love::graphics::ShaderStage> stages[SHADERSTAGE_MAX_ENUM], const Shader::CompileOptions &options)
 {
-	return new Shader(device, stages);
+	return new Shader(device, stages, options);
 }
 
 love::graphics::Buffer *Graphics::newBuffer(const Buffer::Settings &settings, const std::vector<Buffer::DataDeclaration> &format, const void *data, size_t size, size_t arraylength)
@@ -1144,13 +1129,6 @@ void Graphics::applyShaderUniforms(id<MTLRenderCommandEncoder> renderEncoder, lo
 
 		if (b.isMainTexture)
 		{
-			if (maintex == nullptr)
-			{
-				auto texinfo = shader->getMainTextureInfo();
-				if (texinfo != nullptr && texinfo->textureType != TEXTURE_MAX_ENUM)
-					maintex = defaultTextures[texinfo->textureType];
-			}
-
 			texture = getMTLTexture(maintex);
 			samplertex = maintex;
 		}
