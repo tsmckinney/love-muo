@@ -96,7 +96,7 @@ public:
 	void setScissor(const Rect &rect) override;
 	void setScissor() override;
 
-	void setStencilMode(StencilAction action, CompareMode compare, int value, uint32 readmask, uint32 writemask) override;
+	void setStencilState(const StencilState &s) override;
 
 	void setDepthMode(CompareMode compare, bool write) override;
 
@@ -136,6 +136,8 @@ public:
 	void submitComputeEncoder();
 
 	id<MTLSamplerState> getCachedSampler(const SamplerState &s);
+
+	bool isDepthCompareSamplerSupported() const;
 
 	StreamBuffer *getUniformBuffer() const { return uniformBuffer; }
 	Buffer *getDefaultAttributesBuffer() const { return defaultAttributesBuffer; }

@@ -327,7 +327,7 @@ Graphics::Graphics()
 
 	initCapabilities();
 
-	uniformBuffer = CreateStreamBuffer(device, BUFFERUSAGE_VERTEX, 1024 * 1024 * 1);
+	uniformBuffer = CreateStreamBuffer(device, BUFFERUSAGE_UNIFORM, 1024 * 512 * 1);
 
 	{
 		std::vector<Buffer::DataDeclaration> dataformat = {
@@ -810,7 +810,7 @@ id<MTLSamplerState> Graphics::getCachedSampler(const SamplerState &s)
 	desc.lodMinClamp = s.minLod;
 	desc.lodMaxClamp = s.maxLod;
 
-	// TODO: This isn't supported on some older iOS devices...
+	// This isn't supported on some older iOS devices. Texture code checks for support.
 	if (s.depthSampleMode.hasValue)
 		desc.compareFunction = getMTLCompareFunction(s.depthSampleMode.value);
 
@@ -821,6 +821,11 @@ id<MTLSamplerState> Graphics::getCachedSampler(const SamplerState &s)
 
 	return sampler;
 }}
+
+bool Graphics::isDepthCompareSamplerSupported() const
+{
+	return families.mac[1] || families.macCatalyst[1] || families.apple[3];
+}
 
 id<MTLDepthStencilState> Graphics::getCachedDepthStencilState(const DepthState &depth, const StencilState &stencil)
 {
@@ -841,7 +846,7 @@ id<MTLDepthStencilState> Graphics::getCachedDepthStencilState(const DepthState &
 	 * example, if the compare function is GREATER then the stencil test will
 	 * pass if the reference value is greater than the value in the stencil
 	 * buffer. With our API it's more intuitive to assume that
-	 * setStencilMode(STENCIL_KEEP, COMPARE_GREATER, 4) will make it pass if the
+	 * setStencilState(STENCIL_KEEP, COMPARE_GREATER, 4) will make it pass if the
 	 * stencil buffer has a value greater than 4.
 	 **/
 	stencildesc.stencilCompareFunction = getMTLCompareFunction(getReversedCompareMode(stencil.compare));
@@ -1755,11 +1760,11 @@ void Graphics::setScissor()
 	}
 }
 
-void Graphics::setStencilMode(StencilAction action, CompareMode compare, int value, uint32 readmask, uint32 writemask)
+void Graphics::setStencilState(const StencilState &s)
 {
 	DisplayState &state = states.back();
 
-	if (action != STENCIL_KEEP)
+	if (s.action != STENCIL_KEEP)
 	{
 		const auto &rts = state.renderTargets;
 		love::graphics::Texture *dstexture = rts.depthStencil.texture.get();
@@ -1772,11 +1777,7 @@ void Graphics::setStencilMode(StencilAction action, CompareMode compare, int val
 
 	flushBatchedDraws();
 
-	state.stencil.action = action;
-	state.stencil.compare = compare;
-	state.stencil.value = value;
-	state.stencil.readMask = readmask;
-	state.stencil.writeMask = writemask;
+	state.stencil = s;
 
 	dirtyRenderState |= STATEBIT_STENCIL;
 }
