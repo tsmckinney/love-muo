@@ -506,16 +506,15 @@ public:
 	virtual void present(void *screenshotCallbackData) = 0;
 
 	/**
-	 * Sets the current graphics display viewport dimensions.
+	 * Called when the backbuffer changes.
 	 **/
-	virtual void setViewportSize(int width, int height, int pixelwidth, int pixelheight) = 0;
+	virtual void backbufferChanged(int width, int height, int pixelwidth, int pixelheight, bool backbufferstencil, bool backbufferdepth, int msaa) = 0;
+	void backbufferChanged(int width, int height, int pixelwidth, int pixelheight);
 
 	/**
 	 * Sets the current graphics display viewport and initializes the renderer.
-	 * @param width The viewport width.
-	 * @param height The viewport height.
 	 **/
-	virtual bool setMode(void *context, int width, int height, int pixelwidth, int pixelheight, bool windowhasstencil, int msaa) = 0;
+	virtual bool setMode(void *context, int width, int height, int pixelwidth, int pixelheight, bool backbufferstencil, bool backbufferdepth, int msaa) = 0;
 
 	/**
 	 * Un-sets the current graphics display mode (uninitializing objects if
@@ -990,6 +989,8 @@ protected:
 		StreamBuffer::MapInfo vbMap[2];
 		StreamBuffer::MapInfo indexBufferMap = StreamBuffer::MapInfo();
 
+		bool flushing = false;
+
 		BatchedDrawState()
 		{
 			vb[0] = vb[1] = nullptr;
@@ -1048,6 +1049,9 @@ protected:
 
 	void releaseDefaultResources();
 
+	void validateStencilState(const StencilState &s) const;
+	void validateDepthState(bool depthwrite) const;
+
 	void restoreState(const DisplayState &s);
 	void restoreStateChecked(const DisplayState &s);
 
@@ -1062,6 +1066,9 @@ protected:
 	int height;
 	int pixelWidth;
 	int pixelHeight;
+
+	bool backbufferHasStencil;
+	bool backbufferHasDepth;
 
 	bool created;
 	bool active;
