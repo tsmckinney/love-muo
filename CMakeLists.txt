@@ -23,7 +23,7 @@ if(${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
 	message(FATAL_ERROR "Prevented in-tree build.")
 endif()
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.7)
 
 project(love)
 
@@ -183,7 +183,6 @@ Please see https://github.com/love2d/megasource
 	find_package(Harfbuzz REQUIRED)
 	find_package(ModPlug REQUIRED)
 	find_package(OpenAL REQUIRED)
-	find_package(OpenGL REQUIRED)
 	find_package(SDL2 2.0.9 REQUIRED CONFIG COMPONENTS SDL2main)
 	find_package(Theora REQUIRED)
 	find_package(Vorbis REQUIRED)
@@ -206,7 +205,6 @@ Please see https://github.com/love2d/megasource
 	)
 
 	set(LOVE_LINK_LIBRARIES
-		${OPENGL_gl_LIBRARY}
 		${SDL2_LIBRARIES}
 		${FREETYPE_LIBRARY}
 		${HARFBUZZ_LIBRARY}
@@ -259,6 +257,28 @@ function(love_disable_warnings ARG_TARGET)
 	endif()
 	set_target_properties(${ARG_TARGET} PROPERTIES COMPILE_FLAGS ${NEW_FLAGS})
 endfunction()
+
+###################################
+# Version
+###################################
+
+# Extract version.h contents.
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/common/version.h LOVE_VERSION_FILE_CONTENTS)
+
+# Extract one of LOVE_VERSION_MAJOR/MINOR/REV.
+function(match_version ARG_STRING OUT_VAR)
+	string(REGEX MATCH "VERSION_${ARG_STRING} = ([0-9]+);" TMP_VER "${LOVE_VERSION_FILE_CONTENTS}")
+	string(REGEX MATCH "[0-9]+" TMP_VER "${TMP_VER}")
+	set(${OUT_VAR} ${TMP_VER} PARENT_SCOPE)
+endfunction()
+
+match_version("MAJOR" LOVE_VERSION_MAJOR)
+match_version("MINOR" LOVE_VERSION_MINOR)
+match_version("REV" LOVE_VERSION_REV)
+
+set(LOVE_VERSION_STR "${LOVE_VERSION_MAJOR}.${LOVE_VERSION_MINOR}")
+
+message(STATUS "Version: ${LOVE_VERSION_STR}")
 
 #
 # common
@@ -1996,6 +2016,10 @@ add_library(${LOVE_LIB_NAME} SHARED ${LOVE_LIB_SRC} ${LOVE_RC})
 set_target_properties(${LOVE_LIB_NAME} PROPERTIES C_VISIBILITY_PRESET hidden CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 target_link_libraries(${LOVE_LIB_NAME} ${LOVE_LINK_LIBRARIES} ${LOVE_3P})
 
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+	set_target_properties(${LOVE_LIB_NAME} PROPERTIES LIBRARY_OUTPUT_NAME "${LOVE_EXE_NAME}-${LOVE_VERSION_STR}")
+endif()
+
 if(LOVE_EXTRA_DEPENDECIES)
 	add_dependencies(${LOVE_LIB_NAME} ${LOVE_EXTRA_DEPENDECIES})
 endif()
@@ -2042,142 +2066,142 @@ if(NOT ANDROID)
 	endif()
 endif()
 
-if (NOT MSVC OR MINGW)
-	return()
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
+	###################################
+	# CPack
+	###################################
+	install(TARGETS ${LOVE_EXE_NAME} ${LOVE_CONSOLE_EXE_NAME} ${LOVE_LIB_NAME} RUNTIME DESTINATION .)
+
+	# Our install script (and NSIS) doesn't fully support Windows ARM64 yet.
+	if(MEGA_ARM64)
+		set(CPACK_GENERATOR ZIP)
+		set(CPACK_SYSTEM_NAME woa64)
+	else()
+		set(CPACK_GENERATOR ZIP NSIS)
+	endif()
+
+	# Extra DLLs.
+	if(LOVE_EXTRA_DLLS)
+		foreach(DLL ${LOVE_EXTRA_DLLS})
+			get_filename_component(DLL_NAME ${DLL} NAME)
+			message(STATUS "Extra DLL: ${DLL_NAME}")
+		endforeach()
+		install(FILES ${LOVE_EXTRA_DLLS} DESTINATION .)
+	endif()
+
+	# Dynamic runtime libs.
+	if(LOVE_MSVC_DLLS)
+		foreach(DLL ${LOVE_MSVC_DLLS})
+			get_filename_component(DLL_NAME ${DLL} NAME)
+			message(STATUS "Runtime DLL: ${DLL_NAME}")
+		endforeach()
+		install(FILES ${LOVE_MSVC_DLLS} DESTINATION .)
+	endif()
+
+	# Copy a text file from CMAKE_CURRENT_SOURCE_DIR to CMAKE_CURRENT_BINARY_DIR.
+	# On Windows, this function will convert line endings to CR,LF.
+	function(copy_text_file ARG_FILE_IN ARG_FILE_OUT)
+		file(READ ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_FILE_IN} TMP_TXT_CONTENTS)
+		file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${ARG_FILE_OUT} ${TMP_TXT_CONTENTS})
+	endfunction()
+
+	# Text files.
+	copy_text_file(readme.md readme.txt)
+	copy_text_file(license.txt license.txt)
+	copy_text_file(changes.txt changes.txt)
+
+	install(FILES
+			${CMAKE_CURRENT_BINARY_DIR}/changes.txt
+			${CMAKE_CURRENT_BINARY_DIR}/license.txt
+			${CMAKE_CURRENT_BINARY_DIR}/readme.txt
+			DESTINATION .)
+
+	# Icons
+	install(FILES
+			${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis/love.ico
+			${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis/game.ico
+			DESTINATION .)
+
+	set(CPACK_PACKAGE_NAME "love")
+	set(CPACK_PACKAGE_VENDOR "love2d.org")
+	set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "LOVE -- It's awesome")
+	set(CPACK_PACKAGE_VERSION "${LOVE_VERSION_STR}")
+	set(CPACK_PACKAGE_VERSION_MAJOR "${LOVE_VERSION_MAJOR}")
+	set(CPACK_PACKAGE_VERSION_MINOR "${LOVE_VERSION_MINOR}")
+	set(CPACK_PACKAGE_VERSION_PATCH "${LOVE_VERSION_REV}")
+	set(CPACK_PACKAGE_INSTALL_DIRECTORY "LOVE")
+	set(CPACK_PACKAGE_EXECUTABLES "${LOVE_EXE_NAME};LOVE")
+	set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/readme.md")
+	set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/license.txt")
+
+	set(CPACK_NSIS_EXECUTABLES_DIRECTORY .)
+	set(CPACK_NSIS_PACKAGE_NAME "LOVE")
+	set(CPACK_NSIS_DISPLAY_NAME "LOVE ${LOVE_VERSION_STR}")
+	set(CPACK_NSIS_MODIFY_PATH OFF)
+
+	if(LOVE_X64)
+		set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
+	else()
+		set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES")
+	endif()
+
+	set(CPACK_NSIS_MENU_LINKS "http://love2d.org/wiki" "Documentation")
+
+	# Some bug somewhere in NSIS requires "\\\\" somewhere in the path,
+	# according to The Internet. (And sure enough, it does not work
+	# without it).
+	set(NSIS_LEFT_BMP "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\left.bmp")
+	set(NSIS_TOP_BMP "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\top.bmp")
+	set(NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\love.ico")
+	set(NSIS_MUI_UNICON "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\love.ico")
+
+	set(CPACK_NSIS_INSTALLER_MUI_ICON_CODE "
+		!define MUI_WELCOMEPAGE_TITLE \\\"LOVE ${LOVE_VERSION_STR} Setup\\\"
+		!define MUI_WELCOMEFINISHPAGE_BITMAP \\\"${NSIS_LEFT_BMP}\\\"
+		!define MUI_HEADERIMAGE_BITMAP \\\"${NSIS_TOP_BMP}\\\"
+		!define MUI_ICON \\\"${NSIS_MUI_ICON}\\\"
+		!define MUI_UNICON \\\"${NSIS_MUI_UNICON}\\\"
+	")
+
+	set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+		WriteRegStr HKCR \\\".love\\\" \\\"\\\" \\\"LOVE\\\"
+		WriteRegStr HKCR \\\"LOVE\\\" \\\"\\\" \\\"LOVE Game File\\\"
+		WriteRegStr HKCR \\\"LOVE\\\\DefaultIcon\\\" \\\"\\\" \\\"$INSTDIR\\\\game.ico\\\"
+		WriteRegStr HKCR \\\"LOVE\\\\shell\\\" \\\"\\\" \\\"open\\\"
+		WriteRegStr HKCR \\\"LOVE\\\\shell\\\\open\\\" \\\"\\\" \\\"Open in LOVE\\\"
+		WriteRegStr HKCR \\\"LOVE\\\\shell\\\\open\\\\command\\\" \\\"\\\" \\\"$INSTDIR\\\\love.exe $\\\\\\\"%1$\\\\\\\"\\\"
+		System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v  (0x08000000, 0, 0, 0)'
+	")
+
+	set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
+		DeleteRegKey HKCR \\\"LOVE\\\"
+		DeleteRegKey HKCR \\\".love\\\"
+		System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v  (0x08000000, 0, 0, 0)'
+	")
+
+	include(CPack)
+elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+	include(GNUInstallDirs)
+
+	string(TIMESTAMP LOVE_CONFIGURE_TIMESTAMP "%a, %d %b %Y %H:%M:%S +0000" UTC)
+
+	file(COPY platform/unix/debian/ DESTINATION debian PATTERN "*.in" EXCLUDE)
+	configure_file(platform/unix/debian/control.in debian/control @ONLY)
+	configure_file(platform/unix/debian/changelog.in debian/changelog @ONLY)
+	configure_file(platform/unix/debian/rules.in debian/rules @ONLY)
+
+	configure_file(platform/unix/love.desktop.in love.desktop @ONLY)
+
+	install(TARGETS ${LOVE_EXE_NAME} ${LOVE_LIB_NAME})
+	install(FILES platform/unix/love.6
+			DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+			RENAME love.1)
+	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/love.desktop
+			DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+	install(FILES platform/unix/love.xml
+			DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/mime/packages)
+	install(FILES platform/unix/love.svg
+			DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pixmaps)
+	install(FILES platform/unix/application-x-love-game.svg
+			DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/mimetypes)
 endif()
-
-###################################
-# Version
-###################################
-
-# Extract version.h contents.
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/common/version.h LOVE_VERSION_FILE_CONTENTS)
-
-# Extract one of LOVE_VERSION_MAJOR/MINOR/REV.
-function(match_version ARG_STRING OUT_VAR)
-	string(REGEX MATCH "VERSION_${ARG_STRING} = ([0-9]+);" TMP_VER "${LOVE_VERSION_FILE_CONTENTS}")
-	string(REGEX MATCH "[0-9]+" TMP_VER "${TMP_VER}")
-	set(${OUT_VAR} ${TMP_VER} PARENT_SCOPE)
-endfunction()
-
-match_version("MAJOR" LOVE_VERSION_MAJOR)
-match_version("MINOR" LOVE_VERSION_MINOR)
-match_version("REV" LOVE_VERSION_REV)
-
-set(LOVE_VERSION_STR "${LOVE_VERSION_MAJOR}.${LOVE_VERSION_MINOR}")
-
-message(STATUS "Version: ${LOVE_VERSION_STR}")
-
-###################################
-# CPack
-###################################
-install(TARGETS ${LOVE_EXE_NAME} ${LOVE_CONSOLE_EXE_NAME} ${LOVE_LIB_NAME} RUNTIME DESTINATION .)
-
-# Our install script (and NSIS) doesn't fully support Windows ARM64 yet.
-if(MEGA_ARM64)
-	set(CPACK_GENERATOR ZIP)
-	set(CPACK_SYSTEM_NAME woa64)
-else()
-	set(CPACK_GENERATOR ZIP NSIS)
-endif()
-
-# Extra DLLs.
-if(LOVE_EXTRA_DLLS)
-	foreach(DLL ${LOVE_EXTRA_DLLS})
-		get_filename_component(DLL_NAME ${DLL} NAME)
-		message(STATUS "Extra DLL: ${DLL_NAME}")
-	endforeach()
-	install(FILES ${LOVE_EXTRA_DLLS} DESTINATION .)
-endif()
-
-# Dynamic runtime libs.
-if(LOVE_MSVC_DLLS)
-	foreach(DLL ${LOVE_MSVC_DLLS})
-		get_filename_component(DLL_NAME ${DLL} NAME)
-		message(STATUS "Runtime DLL: ${DLL_NAME}")
-	endforeach()
-	install(FILES ${LOVE_MSVC_DLLS} DESTINATION .)
-endif()
-
-# Copy a text file from CMAKE_CURRENT_SOURCE_DIR to CMAKE_CURRENT_BINARY_DIR.
-# On Windows, this function will convert line endings to CR,LF.
-function(copy_text_file ARG_FILE_IN ARG_FILE_OUT)
-	file(READ ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_FILE_IN} TMP_TXT_CONTENTS)
-	file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${ARG_FILE_OUT} ${TMP_TXT_CONTENTS})
-endfunction()
-
-# Text files.
-copy_text_file(readme.md readme.txt)
-copy_text_file(license.txt license.txt)
-copy_text_file(changes.txt changes.txt)
-
-install(FILES
-		${CMAKE_CURRENT_BINARY_DIR}/changes.txt
-		${CMAKE_CURRENT_BINARY_DIR}/license.txt
-		${CMAKE_CURRENT_BINARY_DIR}/readme.txt
-		DESTINATION .)
-
-# Icons
-install(FILES
-		${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis/love.ico
-		${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis/game.ico
-		DESTINATION .)
-
-set(CPACK_PACKAGE_NAME "love")
-set(CPACK_PACKAGE_VENDOR "love2d.org")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "LOVE -- It's awesome")
-set(CPACK_PACKAGE_VERSION "${LOVE_VERSION_STR}")
-set(CPACK_PACKAGE_VERSION_MAJOR "${LOVE_VERSION_MAJOR}")
-set(CPACK_PACKAGE_VERSION_MINOR "${LOVE_VERSION_MINOR}")
-set(CPACK_PACKAGE_VERSION_PATCH "${LOVE_VERSION_REV}")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "LOVE")
-set(CPACK_PACKAGE_EXECUTABLES "${LOVE_EXE_NAME};LOVE")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/readme.md")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/license.txt")
-
-set(CPACK_NSIS_EXECUTABLES_DIRECTORY .)
-set(CPACK_NSIS_PACKAGE_NAME "LOVE")
-set(CPACK_NSIS_DISPLAY_NAME "LOVE ${LOVE_VERSION_STR}")
-set(CPACK_NSIS_MODIFY_PATH OFF)
-
-if(LOVE_X64)
-	set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
-else()
-	set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES")
-endif()
-
-set(CPACK_NSIS_MENU_LINKS "http://love2d.org/wiki" "Documentation")
-
-# Some bug somewhere in NSIS requires "\\\\" somewhere in the path,
-# according to The Internet. (And sure enough, it does not work
-# without it).
-set(NSIS_LEFT_BMP "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\left.bmp")
-set(NSIS_TOP_BMP "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\top.bmp")
-set(NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\love.ico")
-set(NSIS_MUI_UNICON "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\love.ico")
-
-set(CPACK_NSIS_INSTALLER_MUI_ICON_CODE "
-	!define MUI_WELCOMEPAGE_TITLE \\\"LOVE ${LOVE_VERSION_STR} Setup\\\"
-	!define MUI_WELCOMEFINISHPAGE_BITMAP \\\"${NSIS_LEFT_BMP}\\\"
-	!define MUI_HEADERIMAGE_BITMAP \\\"${NSIS_TOP_BMP}\\\"
-	!define MUI_ICON \\\"${NSIS_MUI_ICON}\\\"
-	!define MUI_UNICON \\\"${NSIS_MUI_UNICON}\\\"
-")
-
-set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-	WriteRegStr HKCR \\\".love\\\" \\\"\\\" \\\"LOVE\\\"
-	WriteRegStr HKCR \\\"LOVE\\\" \\\"\\\" \\\"LOVE Game File\\\"
-	WriteRegStr HKCR \\\"LOVE\\\\DefaultIcon\\\" \\\"\\\" \\\"$INSTDIR\\\\game.ico\\\"
-	WriteRegStr HKCR \\\"LOVE\\\\shell\\\" \\\"\\\" \\\"open\\\"
-	WriteRegStr HKCR \\\"LOVE\\\\shell\\\\open\\\" \\\"\\\" \\\"Open in LOVE\\\"
-	WriteRegStr HKCR \\\"LOVE\\\\shell\\\\open\\\\command\\\" \\\"\\\" \\\"$INSTDIR\\\\love.exe $\\\\\\\"%1$\\\\\\\"\\\"
-	System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v  (0x08000000, 0, 0, 0)'
-")
-
-set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
-	DeleteRegKey HKCR \\\"LOVE\\\"
-	DeleteRegKey HKCR \\\".love\\\"
-	System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v  (0x08000000, 0, 0, 0)'
-")
-
-include(CPack)
