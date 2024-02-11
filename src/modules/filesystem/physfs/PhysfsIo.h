@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -23,7 +23,7 @@
 
 #include "libraries/physfs/physfs.h"
 #include "common/int.h"
-#include "filesystem/DroppedFile.h"
+#include "filesystem/NativeFile.h"
 
 #include <string>
 
@@ -119,7 +119,7 @@ struct StripSuffixIo : public PhysfsIo<StripSuffixIo>
 	static const uint32 version = 0;
 
 	std::string filename;
-	DroppedFile *file = nullptr;
+	NativeFile *file = nullptr;
 
 	// The constructor is private in favor of this function to prevent stack allocation
 	// because Physfs will take ownership of this object and call destroy on it later.
@@ -151,23 +151,14 @@ private:
 
 	StripSuffixIo(const std::string &f)
 		: filename(f)
-		, file(new DroppedFile(f))
+		, file(nullptr)
 	{
-		bool success = false;
-
 		try
 		{
-			success = file->open(File::MODE_READ);
+			file = new NativeFile(f, File::MODE_READ);
 		}
 		catch (love::Exception &)
 		{
-			success = false;
-		}
-
-		if (!success)
-		{
-			file->release();
-			file = nullptr;
 		}
 	}
 

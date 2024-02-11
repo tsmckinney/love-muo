@@ -2,7 +2,7 @@ name: continuous-integration
 on: [push, pull_request]
 
 jobs:
-  linux-os:
+  Linux:
     runs-on: ubuntu-22.04
     permissions:
       checks: write
@@ -140,7 +140,7 @@ jobs:
         echo "${{ steps.report1.outputs.failed }} opengl tests failed"
         echo "${{ steps.report2.outputs.failed }} opengles tests failed"
         exit 1
-  windows-os:
+  Windows:
     runs-on: windows-latest
     permissions:
       checks: write
@@ -261,19 +261,19 @@ jobs:
       if: steps.vars.outputs.angle == '1'
       working-directory: angle
       run: 7z x angle-win-${{ steps.vars.outputs.arch }}.zip
-    - name: Delete Strawbery Perl
+    - name: Remove Strawbery Perl From Path
       # https://github.com/actions/runner-images/issues/6627
       # In particular, this is not pretty, but even CMAKE_IGNORE_PREFIX_PATH
-      # cannot help in this case. Delete the whole folder!
+      # cannot help in this case.
       run: |
-        rmdir /s /q C:\Strawberry
+        move /y C:\Strawberry C:\Strawberry_not_in_PATH
         exit /b 0
     - name: Configure
       env:
         CFLAGS: /Zi
         CXXFLAGS: /Zi
         LDFLAGS: /DEBUG:FULL /OPT:REF /OPT:ICF
-      run: cmake -Bbuild -Smegasource -T v142 -A ${{ matrix.platform }} --install-prefix %CD%\install -DCMAKE_PDB_OUTPUT_DIRECTORY=%CD%\pdb ${{ steps.vars.outputs.moredef }}
+      run: cmake -Bbuild -Smegasource -T v143 -A ${{ matrix.platform }} --install-prefix %CD%\install -DCMAKE_PDB_OUTPUT_DIRECTORY=%CD%\pdb ${{ steps.vars.outputs.moredef }}
     - name: Install
       run: cmake --build build --target PACKAGE --config Release -j2
     - name: Copy LuaJIT lua51.pdb

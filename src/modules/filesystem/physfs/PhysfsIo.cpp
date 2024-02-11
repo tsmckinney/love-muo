@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -134,7 +134,7 @@ int64 StripSuffixIo::seek(uint64 offset)
 		PHYSFS_setErrorCode(PHYSFS_ERR_OS_ERROR);
 		return 0;
 	}
-	bool success = file->seek(offset);
+	bool success = file->seek(offset, Stream::SEEKORIGIN_BEGIN);
 	PHYSFS_setErrorCode(success ? PHYSFS_ERR_OK : PHYSFS_ERR_OS_ERROR);
 	return success ? 1 : 0;
 }
