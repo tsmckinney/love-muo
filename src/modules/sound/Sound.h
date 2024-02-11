@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -23,7 +23,7 @@
 
 // LOVE
 #include "common/Module.h"
-#include "filesystem/File.h"
+#include "common/Stream.h"
 
 #include "SoundData.h"
 #include "Decoder.h"
@@ -83,11 +83,11 @@ public:
 	/**
 	 * Attempts to find a decoder for the encoded sound data in the
 	 * specified file.
-	 * @param file The file with encoded sound data.
+	 * @param stream The readable Stream with encoded sound data.
 	 * @param bufferSize The size of each decoded chunk.
 	 * @return A Decoder object on success, or zero if no decoder could be found.
 	 **/
-	virtual Decoder *newDecoder(filesystem::FileData *file, int bufferSize) = 0;
+	virtual Decoder *newDecoder(Stream *stream, int bufferSize) = 0;
 
 }; // Sound
 

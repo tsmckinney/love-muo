@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -53,12 +53,9 @@ public:
 
 	virtual bool isCursorSupported() const = 0;
 
-	virtual double getX() const = 0;
-	virtual double getY() const = 0;
 	virtual void getPosition(double &x, double &y) const = 0;
-	virtual void setX(double x) = 0;
-	virtual void setY(double y) = 0;
 	virtual void setPosition(double x, double y) = 0;
+	virtual void getGlobalPosition(double &x, double &y, int &displayindex) const = 0;
 	virtual void setVisible(bool visible) = 0;
 	virtual bool isDown(const std::vector<int> &buttons) const = 0;
 	virtual bool isVisible() const = 0;

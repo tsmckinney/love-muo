@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006-2023 LOVE Development Team
+# Copyright (c) 2006-2024 LOVE Development Team
 #
 # This software is provided 'as-is', without any express or implied
 # warranty.  In no event will the authors be held liable for any damages
@@ -23,7 +23,7 @@ if(${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
 	message(FATAL_ERROR "Prevented in-tree build.")
 endif()
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.7)
 
 project(love)
 
@@ -34,11 +34,17 @@ set(CMAKE_MODULE_PATH "${love_SOURCE_DIR}/extra/cmake" ${CMAKE_MODULE_PATH})
 # Needed for shared libs on Linux. (-fPIC).
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD 17)
 
 if(APPLE)
 	message(WARNING "CMake is not an officially supported build system for love on Apple platforms.")
 	message(WARNING "Use the prebuilt .app or the xcode project in platform/xcode/ instead.")
+endif()
+
+if(MINGW)
+	message(WARNING "MinGW is not an officially supported build system for love.")
+	message(WARNING "Use megasource with Visual Studio instead.")
+	message(WARNING "Please see https://github.com/love2d/megasource")
 endif()
 
 if(MSVC OR MINGW)
@@ -53,12 +59,14 @@ else()
 	set(LOVE_TARGET_PLATFORM x86)
 endif()
 
-if(APPLE)
-	option(LOVE_JIT "Use LuaJIT" FALSE)
+
+if(APPLE OR MEGA_ARM64)
+	set(LOVE_DEFAULT_JIT FALSE)
 else()
-	option(LOVE_JIT "Use LuaJIT" TRUE)
+	set(LOVE_DEFAULT_JIT TRUE)
 endif()
-option(LOVE_MPG123 "Use mpg123" TRUE)
+
+option(LOVE_JIT "Use LuaJIT" ${LOVE_DEFAULT_JIT})
 
 if(LOVE_JIT)
 	if(APPLE)
@@ -67,10 +75,6 @@ if(LOVE_JIT)
 	message(STATUS "LuaJIT: Enabled")
 else()
 	message(STATUS "LuaJIT: Disabled")
-endif()
-
-if(NOT LOVE_MPG123)
-	add_definitions(-DLOVE_NOMPG123)
 endif()
 
 message(STATUS "Target platform: ${LOVE_TARGET_PLATFORM}")
@@ -82,8 +86,6 @@ endif()
 if(POLICY CMP0063)
 	cmake_policy(SET CMP0063 NEW)
 endif()
-
-find_package(OpenGL)
 
 if(MEGA)
 	# LOVE_MSVC_DLLS contains runtime DLLs that should be bundled with the love
@@ -106,8 +108,8 @@ if(MEGA)
 	set(LOVE_LINK_DIRS ${SDL_LINK_DIR})
 
 	set(LOVE_LINK_LIBRARIES
-		${OPENGL_gl_LIBRARY}
 		${MEGA_FREETYPE}
+		${MEGA_HARFBUZZ}
 		${MEGA_LIBOGG}
 		${MEGA_LIBVORBISFILE}
 		${MEGA_LIBVORBIS}
@@ -131,23 +133,16 @@ if(MEGA)
 		${MEGA_OPENAL}
 	)
 
-	if(LOVE_MPG123)
-		set(LOVE_LINK_LIBRARIES
-			${LOVE_LINK_LIBRARIES}
-			${MEGA_MPEG123}
-		)
-		set(LOVE_MOVE_DLLS
-			${LOVE_MOVE_DLLS}
-			${MEGA_MPEG123}
-		)
+	# LOVE_EXTRA_DLLS are non-runtime DLLs which should be bundled with the
+	# love binary in installers, etc. It's only needed for external
+	# (non-CMake) targets, i.e. LuaJIT.
+	if(NOT DEFINED LOVE_EXTRA_DLLS)
+		set(LOVE_EXTRA_DLLS)
 	endif()
 
 	if(LOVE_JIT)
 		set(LOVE_LUA_LIBRARY ${MEGA_LUAJIT_LIB})
-		# LOVE_EXTRA_DLLS are non-runtime DLLs which should be bundled with the
-		# love binary in installers, etc. It's only needed for external
-		# (non-CMake) targets, i.e. LuaJIT.
-		set(LOVE_EXTRA_DLLS ${MEGA_LUAJIT_DLL})
+		set(LOVE_EXTRA_DLLS ${LOVE_EXTRA_DLLS} ${MEGA_LUAJIT_DLL})
 		set(LOVE_EXTRA_DEPENDECIES luajit)
 
 		set(LOVE_INCLUDE_DIRS
@@ -177,18 +172,18 @@ if(MEGA)
 		# automatically.
 	endif()
 else()
-	if(MSVC)
+	if(MSVC OR ANDROID)
 		message(FATAL_ERROR "
-It is currently only possible to build with megasource or (experimental) mingw on Windows.
+It is currently only possible to build with megasource on Windows and Android.
 Please see https://github.com/love2d/megasource
 ")
 	endif()
 
 	find_package(Freetype REQUIRED)
+	find_package(Harfbuzz REQUIRED)
 	find_package(ModPlug REQUIRED)
 	find_package(OpenAL REQUIRED)
-	find_package(OpenGL REQUIRED)
-	find_package(SDL2 REQUIRED CONFIG COMPONENTS SDL2main)
+	find_package(SDL2 2.0.9 REQUIRED CONFIG COMPONENTS SDL2main)
 	find_package(Theora REQUIRED)
 	find_package(Vorbis REQUIRED)
 	find_package(ZLIB REQUIRED)
@@ -200,6 +195,7 @@ Please see https://github.com/love2d/megasource
 	set(LOVE_INCLUDE_DIRS
 		${SDL2_INCLUDE_DIRS}
 		${FREETYPE_INCLUDE_DIRS}
+		${HARFBUZZ_INCLUDE_DIR}
 		${VORBIS_INCLUDE_DIR}
 		${OPENAL_INCLUDE_DIR}
 		${ZLIB_INCLUDE_DIRS}
@@ -209,9 +205,9 @@ Please see https://github.com/love2d/megasource
 	)
 
 	set(LOVE_LINK_LIBRARIES
-		${OPENGL_gl_LIBRARY}
 		${SDL2_LIBRARIES}
 		${FREETYPE_LIBRARY}
+		${HARFBUZZ_LIBRARY}
 		${OPENAL_LIBRARY}
 		${MODPLUG_LIBRARY}
 		${THEORA_LIBRARY}
@@ -221,18 +217,6 @@ Please see https://github.com/love2d/megasource
 		${OGG_LIBRARY}
 		${ZLIB_LIBRARY}
 	)
-
-	if(LOVE_MPG123)
-		find_package(MPG123 REQUIRED)
-		set(LOVE_LINK_LIBRARIES
-			${LOVE_LINK_LIBRARIES}
-			${MPG123_LIBRARY}
-		)
-		set(LOVE_INCLUDE_DIRS
-			${LOVE_INCLUDE_DIRS}
-			${MPG123_INCLUDE_DIR}
-		)
-	endif()
 
 	if(LOVE_JIT)
 		find_package(LuaJIT REQUIRED)
@@ -274,11 +258,35 @@ function(love_disable_warnings ARG_TARGET)
 	set_target_properties(${ARG_TARGET} PROPERTIES COMPILE_FLAGS ${NEW_FLAGS})
 endfunction()
 
+###################################
+# Version
+###################################
+
+# Extract version.h contents.
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/common/version.h LOVE_VERSION_FILE_CONTENTS)
+
+# Extract one of LOVE_VERSION_MAJOR/MINOR/REV.
+function(match_version ARG_STRING OUT_VAR)
+	string(REGEX MATCH "VERSION_${ARG_STRING} = ([0-9]+);" TMP_VER "${LOVE_VERSION_FILE_CONTENTS}")
+	string(REGEX MATCH "[0-9]+" TMP_VER "${TMP_VER}")
+	set(${OUT_VAR} ${TMP_VER} PARENT_SCOPE)
+endfunction()
+
+match_version("MAJOR" LOVE_VERSION_MAJOR)
+match_version("MINOR" LOVE_VERSION_MINOR)
+match_version("REV" LOVE_VERSION_REV)
+
+set(LOVE_VERSION_STR "${LOVE_VERSION_MAJOR}.${LOVE_VERSION_MINOR}")
+
+message(STATUS "Version: ${LOVE_VERSION_STR}")
+
 #
 # common
 #
 
 set(LOVE_SRC_COMMON
+	src/common/android.cpp
+	src/common/android.h
 	src/common/b64.cpp
 	src/common/b64.h
 	src/common/Color.h
@@ -307,6 +315,7 @@ set(LOVE_SRC_COMMON
 	src/common/Optional.h
 	src/common/pixelformat.cpp
 	src/common/pixelformat.h
+	src/common/Range.h
 	src/common/Reference.cpp
 	src/common/Reference.h
 	src/common/runtime.cpp
@@ -328,7 +337,7 @@ set(LOVE_SRC_COMMON
 
 if (APPLE)
 	set(LOVE_SRC_COMMON ${LOVE_SRC_COMMON}
-		src/common/macosx.mm
+		src/common/macos.mm
 	)
 	set(LOVE_LINK_LIBRARIES ${LOVE_LINK_LIBRARIES} objc)
 	set(LOVE_LINK_LIBRARIES ${LOVE_LINK_LIBRARIES} "-framework CoreFoundation")
@@ -407,6 +416,8 @@ set(LOVE_SRC_MODULE_DATA
 	src/modules/data/Compressor.h
 	src/modules/data/DataModule.cpp
 	src/modules/data/DataModule.h
+	src/modules/data/DataStream.cpp
+	src/modules/data/DataStream.h
 	src/modules/data/DataView.cpp
 	src/modules/data/DataView.h
 	src/modules/data/HashFunction.cpp
@@ -454,22 +465,22 @@ source_group("modules\\event\\sdl" FILES ${LOVE_SRC_MODULE_EVENT_SDL})
 #
 
 set(LOVE_SRC_MODULE_FILESYSTEM_ROOT
-	src/modules/filesystem/DroppedFile.cpp
-	src/modules/filesystem/DroppedFile.h
 	src/modules/filesystem/File.cpp
 	src/modules/filesystem/File.h
 	src/modules/filesystem/FileData.cpp
 	src/modules/filesystem/FileData.h
 	src/modules/filesystem/Filesystem.cpp
 	src/modules/filesystem/Filesystem.h
-	src/modules/filesystem/wrap_DroppedFile.cpp
-	src/modules/filesystem/wrap_DroppedFile.h
+	src/modules/filesystem/NativeFile.cpp
+	src/modules/filesystem/NativeFile.h
 	src/modules/filesystem/wrap_File.cpp
 	src/modules/filesystem/wrap_File.h
 	src/modules/filesystem/wrap_FileData.cpp
 	src/modules/filesystem/wrap_FileData.h
 	src/modules/filesystem/wrap_Filesystem.cpp
 	src/modules/filesystem/wrap_Filesystem.h
+	src/modules/filesystem/wrap_NativeFile.cpp
+	src/modules/filesystem/wrap_NativeFile.h
 )
 
 set(LOVE_SRC_MODULE_FILESYSTEM_PHYSFS
@@ -498,12 +509,16 @@ set(LOVE_SRC_MODULE_FONT_ROOT
 	src/modules/font/BMFontRasterizer.h
 	src/modules/font/Font.cpp
 	src/modules/font/Font.h
+	src/modules/font/GenericShaper.cpp
+	src/modules/font/GenericShaper.h
 	src/modules/font/GlyphData.cpp
 	src/modules/font/GlyphData.h
 	src/modules/font/ImageRasterizer.cpp
 	src/modules/font/ImageRasterizer.h
 	src/modules/font/Rasterizer.cpp
 	src/modules/font/Rasterizer.h
+	src/modules/font/TextShaper.cpp
+	src/modules/font/TextShaper.h
 	src/modules/font/TrueTypeRasterizer.cpp
 	src/modules/font/TrueTypeRasterizer.h
 	src/modules/font/wrap_Font.cpp
@@ -517,6 +532,8 @@ set(LOVE_SRC_MODULE_FONT_ROOT
 set(LOVE_SRC_MODULE_FONT_FREETYPE
 	src/modules/font/freetype/Font.cpp
 	src/modules/font/freetype/Font.h
+	src/modules/font/freetype/HarfbuzzShaper.cpp
+	src/modules/font/freetype/HarfbuzzShaper.h
 	src/modules/font/freetype/TrueTypeRasterizer.cpp
 	src/modules/font/freetype/TrueTypeRasterizer.h
 )
@@ -536,10 +553,6 @@ source_group("modules\\font\\freetype" FILES ${LOVE_SRC_MODULE_FONT_FREETYPE})
 set(LOVE_SRC_MODULE_GRAPHICS_ROOT
 	src/modules/graphics/Buffer.cpp
 	src/modules/graphics/Buffer.h
-	src/modules/graphics/Canvas.cpp
-	src/modules/graphics/Canvas.h
-	src/modules/graphics/depthstencil.cpp
-	src/modules/graphics/depthstencil.h
 	src/modules/graphics/Deprecations.cpp
 	src/modules/graphics/Deprecations.h
 	src/modules/graphics/Drawable.cpp
@@ -548,8 +561,8 @@ set(LOVE_SRC_MODULE_GRAPHICS_ROOT
 	src/modules/graphics/Font.h
 	src/modules/graphics/Graphics.cpp
 	src/modules/graphics/Graphics.h
-	src/modules/graphics/Image.cpp
-	src/modules/graphics/Image.h
+	src/modules/graphics/GraphicsReadback.cpp
+	src/modules/graphics/GraphicsReadback.h
 	src/modules/graphics/Mesh.cpp
 	src/modules/graphics/Mesh.h
 	src/modules/graphics/ParticleSystem.cpp
@@ -558,6 +571,8 @@ set(LOVE_SRC_MODULE_GRAPHICS_ROOT
 	src/modules/graphics/Polyline.h
 	src/modules/graphics/Quad.cpp
 	src/modules/graphics/Quad.h
+	src/modules/graphics/renderstate.cpp
+	src/modules/graphics/renderstate.h
 	src/modules/graphics/Resource.h
 	src/modules/graphics/Shader.cpp
 	src/modules/graphics/Shader.h
@@ -567,8 +582,8 @@ set(LOVE_SRC_MODULE_GRAPHICS_ROOT
 	src/modules/graphics/SpriteBatch.h
 	src/modules/graphics/StreamBuffer.cpp
 	src/modules/graphics/StreamBuffer.h
-	src/modules/graphics/Text.cpp
-	src/modules/graphics/Text.h
+	src/modules/graphics/TextBatch.cpp
+	src/modules/graphics/TextBatch.h
 	src/modules/graphics/Texture.cpp
 	src/modules/graphics/Texture.h
 	src/modules/graphics/vertex.cpp
@@ -577,14 +592,14 @@ set(LOVE_SRC_MODULE_GRAPHICS_ROOT
 	src/modules/graphics/Video.h
 	src/modules/graphics/Volatile.cpp
 	src/modules/graphics/Volatile.h
-	src/modules/graphics/wrap_Canvas.cpp
-	src/modules/graphics/wrap_Canvas.h
+	src/modules/graphics/wrap_Buffer.cpp
+	src/modules/graphics/wrap_Buffer.h
 	src/modules/graphics/wrap_Font.cpp
 	src/modules/graphics/wrap_Font.h
 	src/modules/graphics/wrap_Graphics.cpp
 	src/modules/graphics/wrap_Graphics.h
-	src/modules/graphics/wrap_Image.cpp
-	src/modules/graphics/wrap_Image.h
+	src/modules/graphics/wrap_GraphicsReadback.cpp
+	src/modules/graphics/wrap_GraphicsReadback.h
 	src/modules/graphics/wrap_Mesh.cpp
 	src/modules/graphics/wrap_Mesh.h
 	src/modules/graphics/wrap_ParticleSystem.cpp
@@ -597,8 +612,8 @@ set(LOVE_SRC_MODULE_GRAPHICS_ROOT
 	src/modules/graphics/wrap_SpriteBatch.h
 	src/modules/graphics/wrap_Texture.cpp
 	src/modules/graphics/wrap_Texture.h
-	src/modules/graphics/wrap_Text.cpp
-	src/modules/graphics/wrap_Text.h
+	src/modules/graphics/wrap_TextBatch.cpp
+	src/modules/graphics/wrap_TextBatch.h
 	src/modules/graphics/wrap_Video.cpp
 	src/modules/graphics/wrap_Video.h
 )
@@ -606,14 +621,12 @@ set(LOVE_SRC_MODULE_GRAPHICS_ROOT
 set(LOVE_SRC_MODULE_GRAPHICS_OPENGL
 	src/modules/graphics/opengl/Buffer.cpp
 	src/modules/graphics/opengl/Buffer.h
-	src/modules/graphics/opengl/Canvas.cpp
-	src/modules/graphics/opengl/Canvas.h
 	src/modules/graphics/opengl/FenceSync.cpp
 	src/modules/graphics/opengl/FenceSync.h
 	src/modules/graphics/opengl/Graphics.cpp
 	src/modules/graphics/opengl/Graphics.h
-	src/modules/graphics/opengl/Image.cpp
-	src/modules/graphics/opengl/Image.h
+	src/modules/graphics/opengl/GraphicsReadback.cpp
+	src/modules/graphics/opengl/GraphicsReadback.h
 	src/modules/graphics/opengl/OpenGL.cpp
 	src/modules/graphics/opengl/OpenGL.h
 	src/modules/graphics/opengl/Shader.cpp
@@ -622,15 +635,38 @@ set(LOVE_SRC_MODULE_GRAPHICS_OPENGL
 	src/modules/graphics/opengl/ShaderStage.h
 	src/modules/graphics/opengl/StreamBuffer.cpp
 	src/modules/graphics/opengl/StreamBuffer.h
+	src/modules/graphics/opengl/Texture.cpp
+	src/modules/graphics/opengl/Texture.h
 )
+
+set(LOVE_SRC_MODULE_GRAPHICS_VULKAN
+	src/modules/graphics/vulkan/Graphics.h
+	src/modules/graphics/vulkan/Graphics.cpp
+	src/modules/graphics/vulkan/GraphicsReadback.h
+	src/modules/graphics/vulkan/GraphicsReadback.cpp
+	src/modules/graphics/vulkan/Shader.h
+	src/modules/graphics/vulkan/Shader.cpp
+	src/modules/graphics/vulkan/ShaderStage.h
+	src/modules/graphics/vulkan/ShaderStage.cpp
+	src/modules/graphics/vulkan/StreamBuffer.h
+	src/modules/graphics/vulkan/StreamBuffer.cpp
+	src/modules/graphics/vulkan/Buffer.h
+	src/modules/graphics/vulkan/Buffer.cpp
+	src/modules/graphics/vulkan/Texture.h
+	src/modules/graphics/vulkan/Texture.cpp
+	src/modules/graphics/vulkan/Vulkan.h
+	src/modules/graphics/vulkan/Vulkan.cpp
+	src/modules/graphics/vulkan/VulkanWrapper.h)
 
 set(LOVE_SRC_MODULE_GRAPHICS
 	${LOVE_SRC_MODULE_GRAPHICS_ROOT}
 	${LOVE_SRC_MODULE_GRAPHICS_OPENGL}
+	${LOVE_SRC_MODULE_GRAPHICS_VULKAN}
 )
 
 source_group("modules\\graphics" FILES ${LOVE_SRC_MODULE_GRAPHICS_ROOT})
 source_group("modules\\graphics\\opengl" FILES ${LOVE_SRC_MODULE_GRAPHICS_OPENGL})
+source_group("modules\\graphics\\vulkan" FILES ${LOVE_SRC_MODULE_GRAPHICS_VULKAN})
 
 #
 # love.image
@@ -827,8 +863,6 @@ set(LOVE_SRC_MODULE_PHYSICS_BOX2D
 	src/modules/physics/box2d/DistanceJoint.h
 	src/modules/physics/box2d/EdgeShape.cpp
 	src/modules/physics/box2d/EdgeShape.h
-	src/modules/physics/box2d/Fixture.cpp
-	src/modules/physics/box2d/Fixture.h
 	src/modules/physics/box2d/FrictionJoint.cpp
 	src/modules/physics/box2d/FrictionJoint.h
 	src/modules/physics/box2d/GearJoint.cpp
@@ -871,8 +905,6 @@ set(LOVE_SRC_MODULE_PHYSICS_BOX2D
 	src/modules/physics/box2d/wrap_DistanceJoint.h
 	src/modules/physics/box2d/wrap_EdgeShape.cpp
 	src/modules/physics/box2d/wrap_EdgeShape.h
-	src/modules/physics/box2d/wrap_Fixture.cpp
-	src/modules/physics/box2d/wrap_Fixture.h
 	src/modules/physics/box2d/wrap_FrictionJoint.cpp
 	src/modules/physics/box2d/wrap_FrictionJoint.h
 	src/modules/physics/box2d/wrap_GearJoint.cpp
@@ -914,6 +946,30 @@ source_group("modules\\physics" FILES ${LOVE_SRC_MODULE_PHYSICS_ROOT})
 source_group("modules\\physics\\box2d" FILES ${LOVE_SRC_MODULE_PHYSICS_BOX2D})
 
 #
+# love.sensor
+#
+
+set(LOVE_SRC_MODULE_SENSOR_ROOT
+	src/modules/sensor/Sensor.cpp
+	src/modules/sensor/Sensor.h
+	src/modules/sensor/wrap_Sensor.cpp
+	src/modules/sensor/wrap_Sensor.h
+)
+
+set(LOVE_SRC_MODULE_SENSOR_SDL
+	src/modules/sensor/sdl/Sensor.cpp
+	src/modules/sensor/sdl/Sensor.h
+)
+
+set(LOVE_SRC_MODULE_SENSOR
+	${LOVE_SRC_MODULE_SENSOR_ROOT}
+	${LOVE_SRC_MODULE_SENSOR_SDL}
+)
+
+source_group("modules\\sensor" FILES ${LOVE_SRC_MODULE_SENSOR_ROOT})
+source_group("modules\\sensor\\sdl" FILES ${LOVE_SRC_MODULE_SENSOR_SDL})
+
+#
 # love.sound
 #
 
@@ -935,10 +991,10 @@ set(LOVE_SRC_MODULE_SOUND_ROOT
 set(LOVE_SRC_MODULE_SOUND_LULLABY
 	src/modules/sound/lullaby/FLACDecoder.cpp
 	src/modules/sound/lullaby/FLACDecoder.h
-	src/modules/sound/lullaby/GmeDecoder.cpp
-	src/modules/sound/lullaby/GmeDecoder.h
 	src/modules/sound/lullaby/ModPlugDecoder.cpp
 	src/modules/sound/lullaby/ModPlugDecoder.h
+	src/modules/sound/lullaby/MP3Decoder.h
+	src/modules/sound/lullaby/MP3Decoder.cpp
 	src/modules/sound/lullaby/Sound.cpp
 	src/modules/sound/lullaby/Sound.h
 	src/modules/sound/lullaby/VorbisDecoder.cpp
@@ -946,14 +1002,6 @@ set(LOVE_SRC_MODULE_SOUND_LULLABY
 	src/modules/sound/lullaby/WaveDecoder.cpp
 	src/modules/sound/lullaby/WaveDecoder.h
 )
-
-if(LOVE_MPG123)
-	set(LOVE_SRC_MODULE_SOUND_LULLABY
-		${LOVE_SRC_MODULE_SOUND_LULLABY}
-		src/modules/sound/lullaby/Mpg123Decoder.cpp
-		src/modules/sound/lullaby/Mpg123Decoder.h
-	)
-endif()
 
 set(LOVE_SRC_MODULE_SOUND
 	${LOVE_SRC_MODULE_SOUND_ROOT}
@@ -1124,130 +1172,80 @@ source_group("modules\\window\\sdl" FILES ${LOVE_SRC_MODULE_WINDOW_SDL})
 #
 
 set(LOVE_SRC_3P_BOX2D_ROOT
-	src/libraries/Box2D/Box2D.h
+	src/libraries/box2d/Box2D.h
 )
 
 set(LOVE_SRC_3P_BOX2D_COLLISION
-	src/libraries/Box2D/Collision/b2BroadPhase.cpp
-	src/libraries/Box2D/Collision/b2BroadPhase.h
-	src/libraries/Box2D/Collision/b2CollideCircle.cpp
-	src/libraries/Box2D/Collision/b2CollideEdge.cpp
-	src/libraries/Box2D/Collision/b2CollidePolygon.cpp
-	src/libraries/Box2D/Collision/b2Collision.cpp
-	src/libraries/Box2D/Collision/b2Collision.h
-	src/libraries/Box2D/Collision/b2Distance.cpp
-	src/libraries/Box2D/Collision/b2Distance.h
-	src/libraries/Box2D/Collision/b2DynamicTree.cpp
-	src/libraries/Box2D/Collision/b2DynamicTree.h
-	src/libraries/Box2D/Collision/b2TimeOfImpact.cpp
-	src/libraries/Box2D/Collision/b2TimeOfImpact.h
-)
-
-set(LOVE_SRC_3P_BOX2D_COLLISION_SHAPES
-	src/libraries/Box2D/Collision/Shapes/b2ChainShape.cpp
-	src/libraries/Box2D/Collision/Shapes/b2ChainShape.h
-	src/libraries/Box2D/Collision/Shapes/b2CircleShape.cpp
-	src/libraries/Box2D/Collision/Shapes/b2CircleShape.h
-	src/libraries/Box2D/Collision/Shapes/b2EdgeShape.cpp
-	src/libraries/Box2D/Collision/Shapes/b2EdgeShape.h
-	src/libraries/Box2D/Collision/Shapes/b2PolygonShape.cpp
-	src/libraries/Box2D/Collision/Shapes/b2PolygonShape.h
-	src/libraries/Box2D/Collision/Shapes/b2Shape.h
+    src/libraries/box2d/collision/b2_broad_phase.cpp
+    src/libraries/box2d/collision/b2_chain_shape.cpp
+    src/libraries/box2d/collision/b2_circle_shape.cpp
+    src/libraries/box2d/collision/b2_collide_circle.cpp
+    src/libraries/box2d/collision/b2_collide_edge.cpp
+    src/libraries/box2d/collision/b2_collide_polygon.cpp
+    src/libraries/box2d/collision/b2_collision.cpp
+    src/libraries/box2d/collision/b2_distance.cpp
+    src/libraries/box2d/collision/b2_dynamic_tree.cpp
+    src/libraries/box2d/collision/b2_edge_shape.cpp
+    src/libraries/box2d/collision/b2_polygon_shape.cpp
+    src/libraries/box2d/collision/b2_time_of_impact.cpp
 )
 
 set(LOVE_SRC_3P_BOX2D_COMMON
-	src/libraries/Box2D/Common/b2BlockAllocator.cpp
-	src/libraries/Box2D/Common/b2BlockAllocator.h
-	src/libraries/Box2D/Common/b2Draw.cpp
-	src/libraries/Box2D/Common/b2Draw.h
-	src/libraries/Box2D/Common/b2GrowableStack.h
-	src/libraries/Box2D/Common/b2Math.cpp
-	src/libraries/Box2D/Common/b2Math.h
-	src/libraries/Box2D/Common/b2Settings.cpp
-	src/libraries/Box2D/Common/b2Settings.h
-	src/libraries/Box2D/Common/b2StackAllocator.cpp
-	src/libraries/Box2D/Common/b2StackAllocator.h
-	src/libraries/Box2D/Common/b2Timer.cpp
-	src/libraries/Box2D/Common/b2Timer.h
+    src/libraries/box2d/common/b2_block_allocator.cpp
+    src/libraries/box2d/common/b2_draw.cpp
+    src/libraries/box2d/common/b2_math.cpp
+    src/libraries/box2d/common/b2_settings.cpp
+    src/libraries/box2d/common/b2_stack_allocator.cpp
+    src/libraries/box2d/common/b2_timer.cpp
 )
 
 set(LOVE_SRC_3P_BOX2D_DYNAMICS
-	src/libraries/Box2D/Dynamics/b2Body.cpp
-	src/libraries/Box2D/Dynamics/b2Body.h
-	src/libraries/Box2D/Dynamics/b2ContactManager.cpp
-	src/libraries/Box2D/Dynamics/b2ContactManager.h
-	src/libraries/Box2D/Dynamics/b2Fixture.cpp
-	src/libraries/Box2D/Dynamics/b2Fixture.h
-	src/libraries/Box2D/Dynamics/b2Island.cpp
-	src/libraries/Box2D/Dynamics/b2Island.h
-	src/libraries/Box2D/Dynamics/b2TimeStep.h
-	src/libraries/Box2D/Dynamics/b2World.cpp
-	src/libraries/Box2D/Dynamics/b2World.h
-	src/libraries/Box2D/Dynamics/b2WorldCallbacks.cpp
-	src/libraries/Box2D/Dynamics/b2WorldCallbacks.h
-)
-
-set(LOVE_SRC_3P_BOX2D_DYNAMICS_CONTACTS
-	src/libraries/Box2D/Dynamics/Contacts/b2ChainAndCircleContact.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2ChainAndCircleContact.h
-	src/libraries/Box2D/Dynamics/Contacts/b2ChainAndPolygonContact.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2ChainAndPolygonContact.h
-	src/libraries/Box2D/Dynamics/Contacts/b2CircleContact.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2CircleContact.h
-	src/libraries/Box2D/Dynamics/Contacts/b2Contact.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2Contact.h
-	src/libraries/Box2D/Dynamics/Contacts/b2ContactSolver.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2ContactSolver.h
-	src/libraries/Box2D/Dynamics/Contacts/b2EdgeAndCircleContact.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2EdgeAndCircleContact.h
-	src/libraries/Box2D/Dynamics/Contacts/b2EdgeAndPolygonContact.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2EdgeAndPolygonContact.h
-	src/libraries/Box2D/Dynamics/Contacts/b2PolygonAndCircleContact.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2PolygonAndCircleContact.h
-	src/libraries/Box2D/Dynamics/Contacts/b2PolygonContact.cpp
-	src/libraries/Box2D/Dynamics/Contacts/b2PolygonContact.h
-)
-
-set(LOVE_SRC_3P_BOX2D_DYNAMICS_JOINTS
-	src/libraries/Box2D/Dynamics/Joints/b2DistanceJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2DistanceJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2FrictionJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2FrictionJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2GearJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2GearJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2Joint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2Joint.h
-	src/libraries/Box2D/Dynamics/Joints/b2MotorJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2MotorJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2MouseJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2MouseJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2PrismaticJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2PrismaticJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2PulleyJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2PulleyJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2RevoluteJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2RevoluteJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2RopeJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2RopeJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2WeldJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2WeldJoint.h
-	src/libraries/Box2D/Dynamics/Joints/b2WheelJoint.cpp
-	src/libraries/Box2D/Dynamics/Joints/b2WheelJoint.h
+    src/libraries/box2d/dynamics/b2_body.cpp
+    src/libraries/box2d/dynamics/b2_chain_circle_contact.cpp
+    src/libraries/box2d/dynamics/b2_chain_circle_contact.h
+    src/libraries/box2d/dynamics/b2_chain_polygon_contact.cpp
+    src/libraries/box2d/dynamics/b2_chain_polygon_contact.h
+    src/libraries/box2d/dynamics/b2_circle_contact.cpp
+    src/libraries/box2d/dynamics/b2_circle_contact.h
+    src/libraries/box2d/dynamics/b2_contact.cpp
+    src/libraries/box2d/dynamics/b2_contact_manager.cpp
+    src/libraries/box2d/dynamics/b2_contact_solver.cpp
+    src/libraries/box2d/dynamics/b2_contact_solver.h
+    src/libraries/box2d/dynamics/b2_distance_joint.cpp
+    src/libraries/box2d/dynamics/b2_edge_circle_contact.cpp
+    src/libraries/box2d/dynamics/b2_edge_circle_contact.h
+    src/libraries/box2d/dynamics/b2_edge_polygon_contact.cpp
+    src/libraries/box2d/dynamics/b2_edge_polygon_contact.h
+    src/libraries/box2d/dynamics/b2_fixture.cpp
+    src/libraries/box2d/dynamics/b2_friction_joint.cpp
+    src/libraries/box2d/dynamics/b2_gear_joint.cpp
+    src/libraries/box2d/dynamics/b2_island.cpp
+    src/libraries/box2d/dynamics/b2_island.h
+    src/libraries/box2d/dynamics/b2_joint.cpp
+    src/libraries/box2d/dynamics/b2_motor_joint.cpp
+    src/libraries/box2d/dynamics/b2_mouse_joint.cpp
+    src/libraries/box2d/dynamics/b2_polygon_circle_contact.cpp
+    src/libraries/box2d/dynamics/b2_polygon_circle_contact.h
+    src/libraries/box2d/dynamics/b2_polygon_contact.cpp
+    src/libraries/box2d/dynamics/b2_polygon_contact.h
+    src/libraries/box2d/dynamics/b2_prismatic_joint.cpp
+    src/libraries/box2d/dynamics/b2_pulley_joint.cpp
+    src/libraries/box2d/dynamics/b2_revolute_joint.cpp
+    src/libraries/box2d/dynamics/b2_weld_joint.cpp
+    src/libraries/box2d/dynamics/b2_wheel_joint.cpp
+    src/libraries/box2d/dynamics/b2_world.cpp
+    src/libraries/box2d/dynamics/b2_world_callbacks.cpp
 )
 
 set(LOVE_SRC_3P_BOX2D_ROPE
-	src/libraries/Box2D/Rope/b2Rope.cpp
-	src/libraries/Box2D/Rope/b2Rope.h
+	src/libraries/box2d/rope/b2_rope.cpp
 )
 
 set(LOVE_SRC_3P_BOX2D
 	${LOVE_SRC_3P_BOX2D_ROOT}
 	${LOVE_SRC_3P_BOX2D_COLLISION}
-	${LOVE_SRC_3P_BOX2D_COLLISION_SHAPES}
 	${LOVE_SRC_3P_BOX2D_COMMON}
 	${LOVE_SRC_3P_BOX2D_DYNAMICS}
-	${LOVE_SRC_3P_BOX2D_DYNAMICS_CONTACTS}
-	${LOVE_SRC_3P_BOX2D_DYNAMICS_JOINTS}
 	${LOVE_SRC_3P_BOX2D_ROPE}
 )
 
@@ -1270,10 +1268,20 @@ add_library(love_3p_ddsparse ${LOVE_SRC_3P_DDSPARSE})
 #
 
 set(LOVE_SRC_3P_DRFLAC
-	src/libraries/dr_flac/dr_flac.h
+	src/libraries/dr/dr_flac.h
 )
 
 # dr_flac has no implementation files of its own.
+
+#
+# dr_mp3
+#
+
+set(LOVE_SRC_3P_DRMP3
+	src/libraries/dr/dr_mp3.h
+)
+
+# dr_mp3 has no implementation files of its own.
 
 #
 # enet
@@ -1351,8 +1359,8 @@ set(LOVE_SRC_3P_GLSLANG_GLSLANG_INCLUDE
 	src/libraries/glslang/glslang/Include/intermediate.h
 	src/libraries/glslang/glslang/Include/PoolAlloc.h
 	src/libraries/glslang/glslang/Include/ResourceLimits.h
-	src/libraries/glslang/glslang/Include/revision.h
 	src/libraries/glslang/glslang/Include/ShHandle.h
+	src/libraries/glslang/glslang/Include/SpirvIntrinsics.h
 	src/libraries/glslang/glslang/Include/Types.h
 )
 
@@ -1391,7 +1399,6 @@ set(LOVE_SRC_3P_GLSLANG_GLSLANG_MACHINEINDEPENDENT
 	src/libraries/glslang/glslang/MachineIndependent/ParseHelper.cpp
 	src/libraries/glslang/glslang/MachineIndependent/ParseHelper.h
 	src/libraries/glslang/glslang/MachineIndependent/parseVersions.h
-	src/libraries/glslang/glslang/MachineIndependent/pch.cpp
 	src/libraries/glslang/glslang/MachineIndependent/pch.h
 	src/libraries/glslang/glslang/MachineIndependent/PoolAlloc.cpp
 	src/libraries/glslang/glslang/MachineIndependent/propagateNoContraction.cpp
@@ -1404,6 +1411,8 @@ set(LOVE_SRC_3P_GLSLANG_GLSLANG_MACHINEINDEPENDENT
 	src/libraries/glslang/glslang/MachineIndependent/Scan.h
 	src/libraries/glslang/glslang/MachineIndependent/ScanContext.h
 	src/libraries/glslang/glslang/MachineIndependent/ShaderLang.cpp
+	src/libraries/glslang/glslang/MachineIndependent/span.h
+	src/libraries/glslang/glslang/MachineIndependent/SpirvIntrinsics.cpp
 	src/libraries/glslang/glslang/MachineIndependent/SymbolTable.cpp
 	src/libraries/glslang/glslang/MachineIndependent/SymbolTable.h
 	src/libraries/glslang/glslang/MachineIndependent/Versions.cpp
@@ -1417,7 +1426,6 @@ set(LOVE_SRC_3P_GLSLANG_GLSLANG_OSDEPENDENT
 if(MSVC OR MINGW)
 	set(LOVE_SRC_3P_GLSLANG_GLSLANG_OSDEPENDENT
 		${LOVE_SRC_3P_GLSLANG_GLSLANG_OSDEPENDENT}
-		src/libraries/glslang/glslang/OSDependent/Windows/main.cpp
 		src/libraries/glslang/glslang/OSDependent/Windows/ossource.cpp
 	)
 else()
@@ -1428,25 +1436,59 @@ else()
 endif()
 
 set(LOVE_SRC_3P_GLSLANG_GLSLANG_PUBLIC
+	src/libraries/glslang/glslang/Public/ResourceLimits.h
 	src/libraries/glslang/glslang/Public/ShaderLang.h
 )
 
+set(LOVE_SRC_3P_GLSLANG_GLSLANG_RESOURCELIMITS
+	src/libraries/glslang/glslang/ResourceLimits/ResourceLimits.cpp
+)
+
 set(LOVE_SRC_3P_GLSLANG_GLSLANG
+	src/libraries/glslang/glslang/build_info.h
 	${LOVE_SRC_3P_GLSLANG_GLSLANG_GENERICCODEGEN}
 	${LOVE_SRC_3P_GLSLANG_GLSLANG_INCLUDE}
 	${LOVE_SRC_3P_GLSLANG_GLSLANG_MACHINEINDEPENDENT}
 	${LOVE_SRC_3P_GLSLANG_GLSLANG_OSDEPENDENT}
 	${LOVE_SRC_3P_GLSLANG_GLSLANG_PUBLIC}
+	${LOVE_SRC_3P_GLSLANG_GLSLANG_RESOURCELIMITS}
 )
 
-set(LOVE_SRC_3P_GLSLANG_OGLCOMPILERSDLL
-	src/libraries/glslang/OGLCompilersDLL/InitializeDll.cpp
-	src/libraries/glslang/OGLCompilersDLL/InitializeDll.h
+set(LOVE_SRC_3P_GLSLANG_SPIRV
+	src/libraries/glslang/SPIRV/bitutils.h
+	src/libraries/glslang/SPIRV/disassemble.cpp
+	src/libraries/glslang/SPIRV/disassemble.h
+	src/libraries/glslang/SPIRV/doc.cpp
+	src/libraries/glslang/SPIRV/doc.h
+	src/libraries/glslang/SPIRV/GLSL.ext.AMD.h
+	src/libraries/glslang/SPIRV/GLSL.ext.ARM.h
+	src/libraries/glslang/SPIRV/GLSL.ext.EXT.h
+	src/libraries/glslang/SPIRV/GLSL.ext.KHR.h
+	src/libraries/glslang/SPIRV/GLSL.ext.NV.h
+	src/libraries/glslang/SPIRV/GLSL.ext.QCOM.h
+	src/libraries/glslang/SPIRV/GLSL.std.450.h
+	src/libraries/glslang/SPIRV/GlslangToSpv.cpp
+	src/libraries/glslang/SPIRV/GlslangToSpv.h
+	src/libraries/glslang/SPIRV/hex_float.h
+	src/libraries/glslang/SPIRV/InReadableOrder.cpp
+	src/libraries/glslang/SPIRV/Logger.cpp
+	src/libraries/glslang/SPIRV/Logger.h
+	src/libraries/glslang/SPIRV/NonSemanticDebugPrintf.h
+	src/libraries/glslang/SPIRV/NonSemanticShaderDebugInfo100.h
+	src/libraries/glslang/SPIRV/spirv.hpp
+	src/libraries/glslang/SPIRV/SpvBuilder.cpp
+	src/libraries/glslang/SPIRV/SpvBuilder.h
+	src/libraries/glslang/SPIRV/spvIR.h
+	src/libraries/glslang/SPIRV/SpvPostProcess.cpp
+	src/libraries/glslang/SPIRV/SPVRemapper.cpp
+	src/libraries/glslang/SPIRV/SPVRemapper.h
+	src/libraries/glslang/SPIRV/SpvTools.cpp
+	src/libraries/glslang/SPIRV/SpvTools.h
 )
 
 set(LOVE_SRC_3P_GLSLANG
 	${LOVE_SRC_3P_GLSLANG_GLSLANG}
-	${LOVE_SRC_3P_GLSLANG_OGLCOMPILERSDLL}
+	${LOVE_SRC_3P_GLSLANG_SPIRV}
 )
 
 add_library(love_3p_glslang ${LOVE_SRC_3P_GLSLANG})
@@ -1510,6 +1552,12 @@ set(LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET
 	src/libraries/luasocket/libluasocket/udp.c
 	src/libraries/luasocket/libluasocket/udp.h
 	src/libraries/luasocket/libluasocket/url.lua.h
+	src/libraries/luasocket/libluasocket/unix.c
+	src/libraries/luasocket/libluasocket/unix.h
+	src/libraries/luasocket/libluasocket/unixdgram.c
+	src/libraries/luasocket/libluasocket/unixdgram.h
+	src/libraries/luasocket/libluasocket/unixstream.c
+	src/libraries/luasocket/libluasocket/unixstream.h
 )
 
 set(LOVE_LINK_L3P_LUASOCKET_LIBLUASOCKET)
@@ -1535,12 +1583,6 @@ else()
 	set(LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET
 		${LOVE_SRC_3P_LUASOCKET_LIBLUASOCKET}
 		src/libraries/luasocket/libluasocket/serial.c
-		src/libraries/luasocket/libluasocket/unix.c
-		src/libraries/luasocket/libluasocket/unix.h
-		src/libraries/luasocket/libluasocket/unixtcp.c
-		src/libraries/luasocket/libluasocket/unixtcp.h
-		src/libraries/luasocket/libluasocket/unixudp.c
-		src/libraries/luasocket/libluasocket/unixudp.h
 		src/libraries/luasocket/libluasocket/usocket.c
 		src/libraries/luasocket/libluasocket/usocket.h
 	)
@@ -1568,6 +1610,85 @@ set(LOVE_SRC_3P_LUA53
 
 add_library(love_3p_lua53 ${LOVE_SRC_3P_LUA53})
 target_link_libraries(love_3p_lua53 ${LOVE_LUA_LIBRARY})
+
+#
+# Lua HTTPS
+#
+
+set(LOVE_SRC_3P_LUAHTTPS_ANDROID
+	src/libraries/luahttps/src/android/AndroidClient.cpp
+	src/libraries/luahttps/src/android/AndroidClient.h
+)
+
+set(LOVE_SRC_3P_LUAHTTPS_APPLE
+	src/libraries/luahttps/src/apple/NSURLClient.mm
+	src/libraries/luahttps/src/apple/NSURLClient.h
+)
+
+set(LOVE_SRC_3P_LUAHTTPS_COMMON
+	src/libraries/luahttps/src/common/config.h
+	src/libraries/luahttps/src/common/Connection.h
+	src/libraries/luahttps/src/common/ConnectionClient.h
+	src/libraries/luahttps/src/common/HTTPRequest.cpp
+	src/libraries/luahttps/src/common/HTTPRequest.h
+	src/libraries/luahttps/src/common/HTTPS.cpp
+	src/libraries/luahttps/src/common/HTTPS.h
+	src/libraries/luahttps/src/common/HTTPSClient.cpp
+	src/libraries/luahttps/src/common/HTTPSClient.h
+	src/libraries/luahttps/src/common/PlaintextConnection.cpp
+	src/libraries/luahttps/src/common/PlaintextConnection.h
+)
+
+set(LOVE_SRC_3P_LUAHTTPS_GENERIC
+	src/libraries/luahttps/src/generic/CurlClient.cpp
+	src/libraries/luahttps/src/generic/CurlClient.h
+	src/libraries/luahttps/src/generic/OpenSSLConnection.cpp
+	src/libraries/luahttps/src/generic/OpenSSLConnection.h
+)
+
+set(LOVE_SRC_3P_LUAHTTPS_LUA
+	src/libraries/luahttps/src/lua/main.cpp
+)
+
+set(LOVE_SRC_3P_LUAHTTPS_WINDOWS
+	src/libraries/luahttps/src/windows/SChannelConnection.cpp
+	src/libraries/luahttps/src/windows/SChannelConnection.h
+	src/libraries/luahttps/src/windows/WinINetClient.cpp
+	src/libraries/luahttps/src/windows/WinINetClient.h
+)
+
+# These are platform-dependent but have ifdef guards to make sure they only
+# compile on supported platforms.
+set(LOVE_SRC_3P_LUAHTTPS
+	${LOVE_SRC_3P_LUAHTTPS_ANDROID}
+	${LOVE_SRC_3P_LUAHTTPS_COMMON}
+	${LOVE_SRC_3P_LUAHTTPS_GENERIC}
+	${LOVE_SRC_3P_LUAHTTPS_LUA}
+	${LOVE_SRC_3P_LUAHTTPS_WINDOWS}
+	)
+
+if (APPLE)
+	set(LOVE_SRC_3P_LUAHTTPS ${LOVE_SRC_3P_LUAHTTPS} ${LOVE_SRC_3P_LUAHTTPS_APPLE})
+endif()
+
+set(LOVE_LINK_L3P_LUAHTTPS)
+if(MSVC)
+	set(LOVE_LINK_L3P_LUAHTTPS
+		${LOVE_LINK_L3P_LUAHTTPS}
+		ws2_32
+		secur32
+	)
+
+	if(NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+		set(LOVE_LINK_L3P_LUAHTTPS
+			${LOVE_LINK_L3P_LUAHTTPS}
+			wininet
+		)
+	endif()
+endif()
+
+add_library(love_3p_luahttps ${LOVE_SRC_3P_LUAHTTPS})
+target_link_libraries(love_3p_luahttps ${LOVE_LUA_LIBRARY} ${LOVE_LINK_L3P_LUAHTTPS})
 
 #
 # lz4
@@ -1618,6 +1739,7 @@ set(LOVE_SRC_3P_PHYSFS
 	src/libraries/physfs/physfs_internal.h
 	src/libraries/physfs/physfs_lzmasdk.h
 	src/libraries/physfs/physfs_miniz.h
+	src/libraries/physfs/physfs_platform_android.c
 	src/libraries/physfs/physfs_platform_haiku.cpp
 	src/libraries/physfs/physfs_platform_os2.c
 	src/libraries/physfs/physfs_platform_posix.c
@@ -1639,6 +1761,40 @@ if(APPLE)
 endif()
 
 add_library(love_3p_physfs ${LOVE_SRC_3P_PHYSFS})
+
+#
+# spirv_cross
+#
+
+set(LOVE_SRC_3P_SPIRV_CROSS
+	src/libraries/spirv_cross/GLSL.std.450.h
+	src/libraries/spirv_cross/spirv_cfg.cpp
+	src/libraries/spirv_cross/spirv_cfg.hpp
+	src/libraries/spirv_cross/spirv_common.hpp
+	src/libraries/spirv_cross/spirv_cpp.cpp
+	src/libraries/spirv_cross/spirv_cpp.hpp
+	src/libraries/spirv_cross/spirv_cross_containers.hpp
+	src/libraries/spirv_cross/spirv_cross_error_handling.hpp
+	src/libraries/spirv_cross/spirv_cross_parsed_ir.cpp
+	src/libraries/spirv_cross/spirv_cross_parsed_ir.hpp
+	src/libraries/spirv_cross/spirv_cross_util.cpp
+	src/libraries/spirv_cross/spirv_cross_util.hpp
+	src/libraries/spirv_cross/spirv_cross.cpp
+	src/libraries/spirv_cross/spirv_cross.hpp
+	src/libraries/spirv_cross/spirv_glsl.cpp
+	src/libraries/spirv_cross/spirv_glsl.hpp
+	src/libraries/spirv_cross/spirv_hlsl.cpp
+	src/libraries/spirv_cross/spirv_hlsl.hpp
+	src/libraries/spirv_cross/spirv_msl.cpp
+	src/libraries/spirv_cross/spirv_msl.hpp
+	src/libraries/spirv_cross/spirv_parser.cpp
+	src/libraries/spirv_cross/spirv_parser.hpp
+	src/libraries/spirv_cross/spirv_reflect.cpp
+	src/libraries/spirv_cross/spirv_reflect.hpp
+	src/libraries/spirv_cross/spirv.hpp
+)
+
+add_library(love_3p_spirv_cross ${LOVE_SRC_3P_SPIRV_CROSS})
 
 #
 # stb_image
@@ -1681,6 +1837,65 @@ set(LOVE_SRC_3P_UTF8
 # add_library() here.
 
 #
+# vma
+#
+
+set(LOVE_SRC_3P_VMA src/libraries/vma/vk_mem_alloc.h)
+
+# vulkan memory allocatory has no implementation files of its own.
+
+#
+# volk
+#
+
+set(LOVE_SRC_3P_VOLK 
+	src/libraries/volk/volk.h
+	src/libraries/volk/volk.c)
+
+# since we don't want to use the system vulkan header files we need to 
+# compile this library in the löve source code using VOLK_IMPLEMENTATION.
+
+#
+# vulkan headers
+#
+
+set(LOVE_SRC_3P_VULKAN_HEADERS
+	src/libraries/vulkanheaders/vk_icd.h
+	src/libraries/vulkanheaders/vk_layer.h
+	src/libraries/vulkanheaders/vk_platform.h
+	src/libraries/vulkanheaders/vk_sdk-platform.h
+	src/libraries/vulkanheaders/vulkan_android.h
+	src/libraries/vulkanheaders/vulkan_beta.h
+	src/libraries/vulkanheaders/vulkan_core.h
+	src/libraries/vulkanheaders/vulkan_directfb.h
+	src/libraries/vulkanheaders/vulkan_enums.hpp
+	src/libraries/vulkanheaders/vulkan_format_traits.hpp
+	src/libraries/vulkanheaders/vulkan_fuchsia.h
+	src/libraries/vulkanheaders/vulkan_funcs.h
+	src/libraries/vulkanheaders/vulkan_ggp.h
+	src/libraries/vulkanheaders/vulkan_handles.h
+	src/libraries/vulkanheaders/vulkan_hash.hpp
+	src/libraries/vulkanheaders/vulkan_ios.h
+	src/libraries/vulkanheaders/vulkan_macos.h
+	src/libraries/vulkanheaders/vulkan_metal.h
+	src/libraries/vulkanheaders/vulkan_raii.hpp
+	src/libraries/vulkanheaders/vulkan_screen.h
+	src/libraries/vulkanheaders/vulkan_static_assertions.h
+	src/libraries/vulkanheaders/vulkan_structs.hpp
+	src/libraries/vulkanheaders/vulkan_to_string.h
+	src/libraries/vulkanheaders/vulkan_vi.h
+	src/libraries/vulkanheaders/vulkan_wayland.h
+	src/libraries/vulkanheaders/vulkan_win32.h
+	src/libraries/vulkanheaders/vulkan_xcb.h
+	src/libraries/vulkanheaders/vulkan_xlib_xrandr.h
+	src/libraries/vulkanheaders/vulkan_xlib.h
+	src/libraries/vulkanheaders/vulkan.h
+	src/libraries/vulkanheaders/vulkan.hpp
+)
+
+# vulkan headers has no implementation files of its own.
+
+#
 # Wuff
 #
 
@@ -1717,9 +1932,11 @@ set(LOVE_3P
 	love_3p_lodepng
 	love_3p_luasocket
 	love_3p_lua53
+	love_3p_luahttps
 	love_3p_lz4
 	love_3p_noise1234
 	love_3p_physfs
+	love_3p_spirv_cross
 	love_3p_wuff
 	love_3p_xxhash
 )
@@ -1745,6 +1962,7 @@ set(LOVE_LIB_SRC
 	${LOVE_SRC_MODULE_MATH}
 	${LOVE_SRC_MODULE_MOUSE}
 	${LOVE_SRC_MODULE_PHYSICS}
+	${LOVE_SRC_MODULE_SENSOR}
 	${LOVE_SRC_MODULE_SOUND}
 	${LOVE_SRC_MODULE_SYSTEM}
 	${LOVE_SRC_MODULE_THREAD}
@@ -1758,6 +1976,7 @@ include_directories(
 	BEFORE
 	src
 	src/libraries
+	src/libraries/box2D
 	src/modules
 	${LOVE_INCLUDE_DIRS}
 )
@@ -1785,9 +2004,21 @@ if(MSVC OR MINGW)
 	endif()
 endif()
 
+if(ANDROID)
+	# In Android, the LOVE main entrypoint needs to be compiled
+	# as shared library, so change the library name and add love.cpp
+	set(LOVE_LIB_NAME ${LOVE_EXE_NAME})
+	set(LOVE_LIB_SRC ${LOVE_LIB_SRC} src/love.cpp)
+	set(LOVE_LINK_LIBRARIES ${LOVE_LINK_LIBRARIES} android)
+endif()
+
 add_library(${LOVE_LIB_NAME} SHARED ${LOVE_LIB_SRC} ${LOVE_RC})
 set_target_properties(${LOVE_LIB_NAME} PROPERTIES C_VISIBILITY_PRESET hidden CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 target_link_libraries(${LOVE_LIB_NAME} ${LOVE_LINK_LIBRARIES} ${LOVE_3P})
+
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+	set_target_properties(${LOVE_LIB_NAME} PROPERTIES LIBRARY_OUTPUT_NAME "${LOVE_EXE_NAME}-${LOVE_VERSION_STR}")
+endif()
 
 if(LOVE_EXTRA_DEPENDECIES)
 	add_dependencies(${LOVE_LIB_NAME} ${LOVE_EXTRA_DEPENDECIES})
@@ -1801,167 +2032,176 @@ endif()
 #
 # love (executable)
 #
-add_executable(${LOVE_EXE_NAME} WIN32 src/love.cpp ${LOVE_RC})
-target_link_libraries(${LOVE_EXE_NAME} ${LOVE_LIB_NAME})
-set_target_properties(${LOVE_EXE_NAME} PROPERTIES C_VISIBILITY_PRESET hidden CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+if(NOT ANDROID)
+	add_executable(${LOVE_EXE_NAME} WIN32 src/love.cpp ${LOVE_RC})
+	target_link_libraries(${LOVE_EXE_NAME} ${LOVE_LIB_NAME})
+	set_target_properties(${LOVE_EXE_NAME} PROPERTIES C_VISIBILITY_PRESET hidden CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 
-if(MSVC OR MINGW)
-	add_executable(${LOVE_CONSOLE_EXE_NAME} src/love.cpp ${LOVE_RC})
-	target_link_libraries(${LOVE_CONSOLE_EXE_NAME} ${LOVE_LIB_NAME})
-endif()
-
-function(post_step_move_dll ARG_POST_TARGET ARG_TARGET_OR_FILE)
-	if(TARGET ${ARG_TARGET_OR_FILE})
-		add_custom_command(TARGET ${ARG_POST_TARGET} POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy
-			$<TARGET_FILE:${ARG_TARGET_OR_FILE}>
-			${CMAKE_CURRENT_BINARY_DIR}/$<CONFIGURATION>/$<TARGET_FILE_NAME:${ARG_TARGET_OR_FILE}>)
-	else()
-		get_filename_component(TEMP_FILENAME ${ARG_TARGET_OR_FILE} NAME)
-		add_custom_command(TARGET ${ARG_POST_TARGET} POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy
-			${ARG_TARGET_OR_FILE}
-			${CMAKE_CURRENT_BINARY_DIR}/$<CONFIGURATION>/${TEMP_FILENAME})
+	if(MSVC OR MINGW)
+		add_executable(${LOVE_CONSOLE_EXE_NAME} src/love.cpp ${LOVE_RC})
+		target_link_libraries(${LOVE_CONSOLE_EXE_NAME} ${LOVE_LIB_NAME})
 	endif()
-endfunction()
 
-# Add post build steps to move the DLLs next to the binary. Otherwise
-# running/debugging the binary will not work from inside VS.
-if(LOVE_MOVE_DLLS)
-	foreach(DLL ${LOVE_MOVE_DLLS})
-		post_step_move_dll(love ${DLL})
-	endforeach()
+	function(post_step_move_dll ARG_POST_TARGET ARG_TARGET_OR_FILE)
+		if(TARGET ${ARG_TARGET_OR_FILE})
+			add_custom_command(TARGET ${ARG_POST_TARGET} POST_BUILD
+				COMMAND ${CMAKE_COMMAND} -E copy
+				$<TARGET_FILE:${ARG_TARGET_OR_FILE}>
+				${CMAKE_CURRENT_BINARY_DIR}/$<CONFIGURATION>/$<TARGET_FILE_NAME:${ARG_TARGET_OR_FILE}>)
+		else()
+			get_filename_component(TEMP_FILENAME ${ARG_TARGET_OR_FILE} NAME)
+			add_custom_command(TARGET ${ARG_POST_TARGET} POST_BUILD
+				COMMAND ${CMAKE_COMMAND} -E copy
+				${ARG_TARGET_OR_FILE}
+				${CMAKE_CURRENT_BINARY_DIR}/$<CONFIGURATION>/${TEMP_FILENAME})
+		endif()
+	endfunction()
+
+	# Add post build steps to move the DLLs next to the binary. Otherwise
+	# running/debugging the binary will not work from inside VS.
+	if(LOVE_MOVE_DLLS)
+		foreach(DLL ${LOVE_MOVE_DLLS})
+			post_step_move_dll(love ${DLL})
+		endforeach()
+	endif()
 endif()
 
-if (NOT MSVC OR MINGW)
-	return()
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
+	###################################
+	# CPack
+	###################################
+	install(TARGETS ${LOVE_EXE_NAME} ${LOVE_CONSOLE_EXE_NAME} ${LOVE_LIB_NAME} RUNTIME DESTINATION .)
+
+	# Our install script (and NSIS) doesn't fully support Windows ARM64 yet.
+	if(MEGA_ARM64)
+		set(CPACK_GENERATOR ZIP)
+		set(CPACK_SYSTEM_NAME woa64)
+	else()
+		set(CPACK_GENERATOR ZIP NSIS)
+	endif()
+
+	# Extra DLLs.
+	if(LOVE_EXTRA_DLLS)
+		foreach(DLL ${LOVE_EXTRA_DLLS})
+			get_filename_component(DLL_NAME ${DLL} NAME)
+			message(STATUS "Extra DLL: ${DLL_NAME}")
+		endforeach()
+		install(FILES ${LOVE_EXTRA_DLLS} DESTINATION .)
+	endif()
+
+	# Dynamic runtime libs.
+	if(LOVE_MSVC_DLLS)
+		foreach(DLL ${LOVE_MSVC_DLLS})
+			get_filename_component(DLL_NAME ${DLL} NAME)
+			message(STATUS "Runtime DLL: ${DLL_NAME}")
+		endforeach()
+		install(FILES ${LOVE_MSVC_DLLS} DESTINATION .)
+	endif()
+
+	# Copy a text file from CMAKE_CURRENT_SOURCE_DIR to CMAKE_CURRENT_BINARY_DIR.
+	# On Windows, this function will convert line endings to CR,LF.
+	function(copy_text_file ARG_FILE_IN ARG_FILE_OUT)
+		file(READ ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_FILE_IN} TMP_TXT_CONTENTS)
+		file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${ARG_FILE_OUT} ${TMP_TXT_CONTENTS})
+	endfunction()
+
+	# Text files.
+	copy_text_file(readme.md readme.txt)
+	copy_text_file(license.txt license.txt)
+	copy_text_file(changes.txt changes.txt)
+
+	install(FILES
+			${CMAKE_CURRENT_BINARY_DIR}/changes.txt
+			${CMAKE_CURRENT_BINARY_DIR}/license.txt
+			${CMAKE_CURRENT_BINARY_DIR}/readme.txt
+			DESTINATION .)
+
+	# Icons
+	install(FILES
+			${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis/love.ico
+			${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis/game.ico
+			DESTINATION .)
+
+	set(CPACK_PACKAGE_NAME "love")
+	set(CPACK_PACKAGE_VENDOR "love2d.org")
+	set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "LOVE -- It's awesome")
+	set(CPACK_PACKAGE_VERSION "${LOVE_VERSION_STR}")
+	set(CPACK_PACKAGE_VERSION_MAJOR "${LOVE_VERSION_MAJOR}")
+	set(CPACK_PACKAGE_VERSION_MINOR "${LOVE_VERSION_MINOR}")
+	set(CPACK_PACKAGE_VERSION_PATCH "${LOVE_VERSION_REV}")
+	set(CPACK_PACKAGE_INSTALL_DIRECTORY "LOVE")
+	set(CPACK_PACKAGE_EXECUTABLES "${LOVE_EXE_NAME};LOVE")
+	set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/readme.md")
+	set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/license.txt")
+
+	set(CPACK_NSIS_EXECUTABLES_DIRECTORY .)
+	set(CPACK_NSIS_PACKAGE_NAME "LOVE")
+	set(CPACK_NSIS_DISPLAY_NAME "LOVE ${LOVE_VERSION_STR}")
+	set(CPACK_NSIS_MODIFY_PATH OFF)
+
+	if(LOVE_X64)
+		set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
+	else()
+		set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES")
+	endif()
+
+	set(CPACK_NSIS_MENU_LINKS "http://love2d.org/wiki" "Documentation")
+
+	# Some bug somewhere in NSIS requires "\\\\" somewhere in the path,
+	# according to The Internet. (And sure enough, it does not work
+	# without it).
+	set(NSIS_LEFT_BMP "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\left.bmp")
+	set(NSIS_TOP_BMP "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\top.bmp")
+	set(NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\love.ico")
+	set(NSIS_MUI_UNICON "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\love.ico")
+
+	set(CPACK_NSIS_INSTALLER_MUI_ICON_CODE "
+		!define MUI_WELCOMEPAGE_TITLE \\\"LOVE ${LOVE_VERSION_STR} Setup\\\"
+		!define MUI_WELCOMEFINISHPAGE_BITMAP \\\"${NSIS_LEFT_BMP}\\\"
+		!define MUI_HEADERIMAGE_BITMAP \\\"${NSIS_TOP_BMP}\\\"
+		!define MUI_ICON \\\"${NSIS_MUI_ICON}\\\"
+		!define MUI_UNICON \\\"${NSIS_MUI_UNICON}\\\"
+	")
+
+	set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+		WriteRegStr HKCR \\\".love\\\" \\\"\\\" \\\"LOVE\\\"
+		WriteRegStr HKCR \\\"LOVE\\\" \\\"\\\" \\\"LOVE Game File\\\"
+		WriteRegStr HKCR \\\"LOVE\\\\DefaultIcon\\\" \\\"\\\" \\\"$INSTDIR\\\\game.ico\\\"
+		WriteRegStr HKCR \\\"LOVE\\\\shell\\\" \\\"\\\" \\\"open\\\"
+		WriteRegStr HKCR \\\"LOVE\\\\shell\\\\open\\\" \\\"\\\" \\\"Open in LOVE\\\"
+		WriteRegStr HKCR \\\"LOVE\\\\shell\\\\open\\\\command\\\" \\\"\\\" \\\"$INSTDIR\\\\love.exe $\\\\\\\"%1$\\\\\\\"\\\"
+		System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v  (0x08000000, 0, 0, 0)'
+	")
+
+	set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
+		DeleteRegKey HKCR \\\"LOVE\\\"
+		DeleteRegKey HKCR \\\".love\\\"
+		System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v  (0x08000000, 0, 0, 0)'
+	")
+
+	include(CPack)
+elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+	include(GNUInstallDirs)
+
+	string(TIMESTAMP LOVE_CONFIGURE_TIMESTAMP "%a, %d %b %Y %H:%M:%S +0000" UTC)
+
+	file(COPY platform/unix/debian/ DESTINATION debian PATTERN "*.in" EXCLUDE)
+	configure_file(platform/unix/debian/control.in debian/control @ONLY)
+	configure_file(platform/unix/debian/changelog.in debian/changelog @ONLY)
+	configure_file(platform/unix/debian/rules.in debian/rules @ONLY)
+
+	configure_file(platform/unix/love.desktop.in love.desktop @ONLY)
+
+	install(TARGETS ${LOVE_EXE_NAME} ${LOVE_LIB_NAME})
+	install(FILES platform/unix/love.6
+			DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+			RENAME love.1)
+	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/love.desktop
+			DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+	install(FILES platform/unix/love.xml
+			DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/mime/packages)
+	install(FILES platform/unix/love.svg
+			DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pixmaps)
+	install(FILES platform/unix/application-x-love-game.svg
+			DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/mimetypes)
 endif()
-
-###################################
-# Version
-###################################
-
-# Extract version.h contents.
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/common/version.h LOVE_VERSION_FILE_CONTENTS)
-
-# Extract one of LOVE_VERSION_MAJOR/MINOR/REV.
-function(match_version ARG_STRING OUT_VAR)
-	string(REGEX MATCH "VERSION_${ARG_STRING} = ([0-9]+);" TMP_VER "${LOVE_VERSION_FILE_CONTENTS}")
-	string(REGEX MATCH "[0-9]+" TMP_VER "${TMP_VER}")
-	set(${OUT_VAR} ${TMP_VER} PARENT_SCOPE)
-endfunction()
-
-match_version("MAJOR" LOVE_VERSION_MAJOR)
-match_version("MINOR" LOVE_VERSION_MINOR)
-match_version("REV" LOVE_VERSION_REV)
-
-set(LOVE_VERSION_STR "${LOVE_VERSION_MAJOR}.${LOVE_VERSION_MINOR}")
-
-message(STATUS "Version: ${LOVE_VERSION_STR}")
-
-###################################
-# CPack
-###################################
-install(TARGETS ${LOVE_EXE_NAME} ${LOVE_CONSOLE_EXE_NAME} ${LOVE_LIB_NAME} RUNTIME DESTINATION .)
-
-# Extra DLLs.
-if(LOVE_EXTRA_DLLS)
-	foreach(DLL ${LOVE_EXTRA_DLLS})
-		get_filename_component(DLL_NAME ${DLL} NAME)
-		message(STATUS "Extra DLL: ${DLL_NAME}")
-	endforeach()
-	install(FILES ${LOVE_EXTRA_DLLS} DESTINATION .)
-endif()
-
-# Dynamic runtime libs.
-if(LOVE_MSVC_DLLS)
-	foreach(DLL ${LOVE_MSVC_DLLS})
-		get_filename_component(DLL_NAME ${DLL} NAME)
-		message(STATUS "Runtime DLL: ${DLL_NAME}")
-	endforeach()
-	install(FILES ${LOVE_MSVC_DLLS} DESTINATION .)
-endif()
-
-# Copy a text file from CMAKE_CURRENT_SOURCE_DIR to CMAKE_CURRENT_BINARY_DIR.
-# On Windows, this function will convert line endings to CR,LF.
-function(copy_text_file ARG_FILE_IN ARG_FILE_OUT)
-	file(READ ${CMAKE_CURRENT_SOURCE_DIR}/${ARG_FILE_IN} TMP_TXT_CONTENTS)
-	file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/${ARG_FILE_OUT} ${TMP_TXT_CONTENTS})
-endfunction()
-
-# Text files.
-copy_text_file(readme.md readme.txt)
-copy_text_file(license.txt license.txt)
-copy_text_file(changes.txt changes.txt)
-
-install(FILES
-		${CMAKE_CURRENT_BINARY_DIR}/changes.txt
-		${CMAKE_CURRENT_BINARY_DIR}/license.txt
-		${CMAKE_CURRENT_BINARY_DIR}/readme.txt
-		DESTINATION .)
-
-# Icons
-install(FILES
-		${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis/love.ico
-		${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis/game.ico
-		DESTINATION .)
-
-set(CPACK_GENERATOR ZIP NSIS)
-set(CPACK_PACKAGE_NAME "love")
-set(CPACK_PACKAGE_VENDOR "love2d.org")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "LOVE -- It's awesome")
-set(CPACK_PACKAGE_VERSION "${LOVE_VERSION_STR}")
-set(CPACK_PACKAGE_VERSION_MAJOR "${LOVE_VERSION_MAJOR}")
-set(CPACK_PACKAGE_VERSION_MINOR "${LOVE_VERSION_MINOR}")
-set(CPACK_PACKAGE_VERSION_PATCH "${LOVE_VERSION_REV}")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "LOVE")
-set(CPACK_PACKAGE_EXECUTABLES "${LOVE_EXE_NAME};LOVE")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/readme.md")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/license.txt")
-
-set(CPACK_NSIS_EXECUTABLES_DIRECTORY .)
-set(CPACK_NSIS_PACKAGE_NAME "LOVE")
-set(CPACK_NSIS_DISPLAY_NAME "LOVE ${LOVE_VERSION_STR}")
-set(CPACK_NSIS_MODIFY_PATH OFF)
-
-if(LOVE_X64)
-	set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
-else()
-	set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES")
-endif()
-
-set(CPACK_NSIS_MENU_LINKS "http://love2d.org/wiki" "Documentation")
-
-# Some bug somewhere in NSIS requires "\\\\" somewhere in the path,
-# according to The Internet. (And sure enough, it does not work
-# without it).
-set(NSIS_LEFT_BMP "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\left.bmp")
-set(NSIS_TOP_BMP "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\top.bmp")
-set(NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\love.ico")
-set(NSIS_MUI_UNICON "${CMAKE_CURRENT_SOURCE_DIR}/extra/nsis\\\\love.ico")
-
-set(CPACK_NSIS_INSTALLER_MUI_ICON_CODE "
-	!define MUI_WELCOMEPAGE_TITLE \\\"LOVE ${LOVE_VERSION_STR} Setup\\\"
-	!define MUI_WELCOMEFINISHPAGE_BITMAP \\\"${NSIS_LEFT_BMP}\\\"
-	!define MUI_HEADERIMAGE_BITMAP \\\"${NSIS_TOP_BMP}\\\"
-	!define MUI_ICON \\\"${NSIS_MUI_ICON}\\\"
-	!define MUI_UNICON \\\"${NSIS_MUI_UNICON}\\\"
-")
-
-set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-	WriteRegStr HKCR \\\".love\\\" \\\"\\\" \\\"LOVE\\\"
-	WriteRegStr HKCR \\\"LOVE\\\" \\\"\\\" \\\"LOVE Game File\\\"
-	WriteRegStr HKCR \\\"LOVE\\\\DefaultIcon\\\" \\\"\\\" \\\"$INSTDIR\\\\game.ico\\\"
-	WriteRegStr HKCR \\\"LOVE\\\\shell\\\" \\\"\\\" \\\"open\\\"
-	WriteRegStr HKCR \\\"LOVE\\\\shell\\\\open\\\" \\\"\\\" \\\"Open in LOVE\\\"
-	WriteRegStr HKCR \\\"LOVE\\\\shell\\\\open\\\\command\\\" \\\"\\\" \\\"$INSTDIR\\\\love.exe $\\\\\\\"%1$\\\\\\\"\\\"
-	System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v  (0x08000000, 0, 0, 0)'
-")
-
-set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
-	DeleteRegKey HKCR \\\"LOVE\\\"
-	DeleteRegKey HKCR \\\".love\\\"
-	System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v  (0x08000000, 0, 0, 0)'
-")
-
-include(CPack)

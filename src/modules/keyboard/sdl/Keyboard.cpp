@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -18,8 +18,15 @@
  * 3. This notice may not be removed or altered from any source distribution.
  **/
 
+#include <SDL_version.h>
+
 #include "Keyboard.h"
 #include "window/Window.h"
+
+// SDL before 2.0.18 lack KMOD_SCROLL. Use KMOD_RESERVED instead.
+#if !SDL_VERSION_ATLEAST(2, 0, 18)
+#define KMOD_SCROLL KMOD_RESERVED
+#endif // !SDL_VERSION_ATLEAST(2, 0, 18)
 
 namespace love
 {
@@ -73,6 +80,27 @@ bool Keyboard::isScancodeDown(const std::vector<Scancode> &scancodelist) const
 
 		if (scancodes.find(scancode, sdlcode) && state[sdlcode])
 			return true;
+	}
+
+	return false;
+}
+
+bool Keyboard::isModifierActive(ModifierKey key) const
+{
+	int modstate = SDL_GetModState();
+
+	switch (key)
+	{
+	case MODKEY_NUMLOCK:
+		return (modstate & KMOD_NUM) != 0;
+	case MODKEY_CAPSLOCK:
+		return (modstate & KMOD_CAPS) != 0;
+	case MODKEY_SCROLLLOCK:
+		return (modstate & KMOD_SCROLL) != 0;
+	case MODKEY_MODE:
+		return (modstate & KMOD_MODE) != 0;
+	default:
+		break;
 	}
 
 	return false;

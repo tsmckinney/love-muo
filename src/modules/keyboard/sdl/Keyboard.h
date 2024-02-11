@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -48,6 +48,7 @@ public:
 	bool hasKeyRepeat() const;
 	bool isDown(const std::vector<Key> &keylist) const;
 	bool isScancodeDown(const std::vector<Scancode> &scancodelist) const;
+	bool isModifierActive(ModifierKey key) const;
 
 	Key getKeyFromScancode(Scancode scancode) const;
 	Scancode getScancodeFromKey(Key key) const;

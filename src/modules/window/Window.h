@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -43,6 +43,10 @@ class Graphics;
 namespace window
 {
 
+// Applied when the window is first created.
+void setHighDPIAllowed(bool enable);
+bool isHighDPIAllowed();
+
 // Forward-declared so it can be used in the class methods. We can't define the
 // whole thing here because it uses the Window::Type enum.
 struct WindowSettings;
@@ -65,8 +69,9 @@ public:
 		SETTING_MIN_HEIGHT,
 		SETTING_BORDERLESS,
 		SETTING_CENTERED,
-		SETTING_DISPLAY,
-		SETTING_HIGHDPI,
+		SETTING_DISPLAYINDEX,
+		SETTING_DISPLAY, // Deprecated
+		SETTING_HIGHDPI, // Deprecated
 		SETTING_USE_DPISCALE,
 		SETTING_REFRESHRATE,
 		SETTING_X,
@@ -173,6 +178,7 @@ public:
 	virtual void minimize() = 0;
 	virtual void maximize() = 0;
 	virtual void restore() = 0;
+	virtual void focus() = 0;
 
 	virtual bool isMaximized() const = 0;
 	virtual bool isMinimized() const = 0;
@@ -211,7 +217,7 @@ public:
 	virtual double fromPixels(double x) const = 0;
 	virtual void fromPixels(double px, double py, double &wx, double &wy) const = 0;
 
-	virtual const void *getHandle() const = 0;
+	virtual void *getHandle() const = 0;
 
 	virtual bool showMessageBox(const std::string &title, const std::string &message, MessageBoxType type, bool attachtowindow) = 0;
 	virtual int showMessageBox(const MessageBoxData &data) = 0;
@@ -256,14 +262,13 @@ struct WindowSettings
 	int vsync = 1;
 	int msaa = 0;
 	bool stencil = true;
-	int depth = 0;
+	bool depth = false;
 	bool resizable = false;
 	int minwidth = 1;
 	int minheight = 1;
 	bool borderless = false;
 	bool centered = true;
-	int display = 0;
-	bool highdpi = false;
+	int displayindex = 0;
 	bool usedpiscale = true;
 	double refreshrate = 0.0;
 	bool useposition = false;

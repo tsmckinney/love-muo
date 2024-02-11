@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -43,14 +43,15 @@ public:
 	virtual ~System() {}
 
 	// Implements Module.
-	const char *getName() const;
+	const char *getName() const override;
 
-	int getProcessorCount() const;
+	int getProcessorCount() const override;
 
-	void setClipboardText(const std::string &text) const;
-	std::string getClipboardText() const;
+	void setClipboardText(const std::string &text) const override;
+	std::string getClipboardText() const override;
 
-	PowerState getPowerInfo(int &seconds, int &percent) const;
+	PowerState getPowerInfo(int &seconds, int &percent) const override;
+	std::vector<std::string> getPreferredLocales() const override;
 
 private:
 

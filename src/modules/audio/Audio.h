@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -296,6 +296,21 @@ public:
 	 */
 	virtual void pauseContext() = 0;
 	virtual void resumeContext() = 0;
+
+	/**
+	 * Get current playback device name.
+	 */
+	virtual std::string getPlaybackDevice() = 0;
+
+	/**
+	 * Retrieve list of available playback devices.
+	 */
+	virtual void getPlaybackDevices(std::vector<std::string> &list) = 0;
+
+	/**
+	 * Set the current playback device to specified device name.
+	 */
+	virtual void setPlaybackDevice(const char *name);
 
 private:
 

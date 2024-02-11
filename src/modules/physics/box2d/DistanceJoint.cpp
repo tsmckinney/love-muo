@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -58,24 +58,24 @@ float DistanceJoint::getLength() const
 	return Physics::scaleUp(joint->GetLength());
 }
 
-void DistanceJoint::setFrequency(float hz)
+void DistanceJoint::setStiffness(float k)
 {
-	joint->SetFrequency(hz);
+	joint->SetStiffness(k);
 }
 
-float DistanceJoint::getFrequency() const
+float DistanceJoint::getStiffness() const
 {
-	return joint->GetFrequency();
+	return joint->GetStiffness();
 }
 
-void DistanceJoint::setDampingRatio(float d)
+void DistanceJoint::setDamping(float d)
 {
-	joint->SetDampingRatio(d);
+	joint->SetDamping(d);
 }
 
-float DistanceJoint::getDampingRatio() const
+float DistanceJoint::getDamping() const
 {
-	return joint->GetDampingRatio();
+	return joint->GetDamping();
 }
 
 

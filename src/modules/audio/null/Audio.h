@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -88,6 +88,9 @@ public:
 
 	void pauseContext();
 	void resumeContext();
+
+	std::string getPlaybackDevice();
+	void getPlaybackDevices(std::vector<std::string> &list);
 
 private:
 	float volume;

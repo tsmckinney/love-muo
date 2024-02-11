@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -45,6 +45,16 @@ bool Keyboard::getConstant(const char *in, Scancode &out)
 bool Keyboard::getConstant(Scancode in, const char *&out)
 {
 	return scancodes.find(in, out);
+}
+
+bool Keyboard::getConstant(const char *in, ModifierKey &out)
+{
+	return modifiers.find(in, out);
+}
+
+bool Keyboard::getConstant(ModifierKey in, const char *&out)
+{
+	return modifiers.find(in, out);
 }
 
 StringMap<Keyboard::Key, Keyboard::KEY_MAX_ENUM>::Entry Keyboard::keyEntries[] =
@@ -211,7 +221,7 @@ StringMap<Keyboard::Key, Keyboard::KEY_MAX_ENUM>::Entry Keyboard::keyEntries[] =
 	{"oper", Keyboard::KEY_OPER},
 	{"clearagain", Keyboard::KEY_CLEARAGAIN},
 
-	{"thsousandsseparator", Keyboard::KEY_THOUSANDSSEPARATOR},
+	{"thousandsseparator", Keyboard::KEY_THOUSANDSSEPARATOR},
 	{"decimalseparator", Keyboard::KEY_DECIMALSEPARATOR},
 	{"currencyunit", Keyboard::KEY_CURRENCYUNIT},
 	{"currencysubunit", Keyboard::KEY_CURRENCYSUBUNIT},
@@ -432,7 +442,7 @@ StringMap<Keyboard::Scancode, Keyboard::SCANCODE_MAX_ENUM>::Entry Keyboard::scan
 
 	{"kp00", SCANCODE_KP_00},
 	{"kp000", SCANCODE_KP_000},
-	{"thsousandsseparator", SCANCODE_THOUSANDSSEPARATOR},
+	{"thousandsseparator", SCANCODE_THOUSANDSSEPARATOR},
 	{"decimalseparator", SCANCODE_DECIMALSEPARATOR},
 	{"currencyunit", SCANCODE_CURRENCYUNIT},
 	{"currencysubunit", SCANCODE_CURRENCYSUBUNIT},
@@ -520,6 +530,16 @@ StringMap<Keyboard::Scancode, Keyboard::SCANCODE_MAX_ENUM>::Entry Keyboard::scan
 };
 
 StringMap<Keyboard::Scancode, Keyboard::SCANCODE_MAX_ENUM> Keyboard::scancodes(Keyboard::scancodeEntries, sizeof(Keyboard::scancodeEntries));
+
+StringMap<Keyboard::ModifierKey, Keyboard::MODKEY_MAX_ENUM>::Entry Keyboard::modifierEntries[] =
+{
+	{"numlock", MODKEY_NUMLOCK},
+	{"capslock", MODKEY_CAPSLOCK},
+	{"scrolllock", MODKEY_SCROLLLOCK},
+	{"mode", MODKEY_MODE},
+};
+
+StringMap<Keyboard::ModifierKey, Keyboard::MODKEY_MAX_ENUM> Keyboard::modifiers(Keyboard::modifierEntries, sizeof(Keyboard::modifierEntries));
 
 } // keyboard
 } // love

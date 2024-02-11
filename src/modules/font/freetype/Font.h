@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -45,8 +45,7 @@ public:
 
 	// Implements Font
 	Rasterizer *newRasterizer(love::filesystem::FileData *data) override;
-	Rasterizer *newTrueTypeRasterizer(love::Data *data, int size, TrueTypeRasterizer::Hinting hinting) override;
-	Rasterizer *newTrueTypeRasterizer(love::Data *data, int size, float dpiscale, TrueTypeRasterizer::Hinting hinting) override;
+	Rasterizer *newTrueTypeRasterizer(love::Data *data, int size, const font::TrueTypeRasterizer::Settings &settings) override;
 
 	// Implement Module
 	const char *getName() const override;

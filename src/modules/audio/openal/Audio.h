@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2023 LOVE Development Team
+ * Copyright (c) 2006-2024 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -127,6 +127,10 @@ public:
 
 	bool getEffectID(const char *name, ALuint &id);
 
+	std::string getPlaybackDevice();
+	void getPlaybackDevices(std::vector<std::string> &list);
+	void setPlaybackDevice(const char *name);
+
 private:
 	void initializeEFX();
 	// The OpenAL device.
@@ -137,6 +141,7 @@ private:
 
 	// The OpenAL context.
 	ALCcontext *context;
+	std::vector<ALCint> attribs;
 
 	// The OpenAL effects
 	struct EffectMapStorage
