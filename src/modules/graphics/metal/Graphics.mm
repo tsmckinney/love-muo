@@ -263,7 +263,8 @@ struct DefaultVertexAttributes
 Graphics *Graphics::graphicsInstance = nullptr;
 
 Graphics::Graphics()
-	: device(nil)
+	: love::graphics::Graphics("love.graphics.metal")
+	, device(nil)
 	, commandQueue(nil)
 	, commandBuffer(nil)
 	, renderEncoder(nil)
@@ -430,6 +431,11 @@ love::graphics::StreamBuffer *Graphics::newStreamBuffer(BufferUsage usage, size_
 love::graphics::Texture *Graphics::newTexture(const Texture::Settings &settings, const Texture::Slices *data)
 {
 	return new Texture(this, device, settings, data);
+}
+
+love::graphics::Texture *Graphics::newTextureView(love::graphics::Texture *base, const Texture::ViewSettings &viewsettings)
+{
+	return new Texture(this, device, base, viewsettings);
 }
 
 love::graphics::ShaderStage *Graphics::newShaderStageInternal(ShaderStageType stage, const std::string &cachekey, const std::string &source, bool gles)

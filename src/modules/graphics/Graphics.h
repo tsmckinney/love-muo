@@ -451,13 +451,11 @@ public:
 		}
 	};
 
-	Graphics();
+	Graphics(const char *name);
 	virtual ~Graphics();
 
-	// Implements Module.
-	virtual ModuleType getModuleType() const { return M_GRAPHICS; }
-
 	virtual Texture *newTexture(const Texture::Settings &settings, const Texture::Slices *data = nullptr) = 0;
+	virtual Texture *newTextureView(Texture *base, const Texture::ViewSettings &viewsettings) = 0;
 
 	Quad *newQuad(Quad::Viewport v, double sw, double sh);
 	Font *newFont(love::font::Rasterizer *data);
