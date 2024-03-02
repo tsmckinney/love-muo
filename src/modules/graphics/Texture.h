@@ -39,6 +39,7 @@
 
 // C
 #include <stddef.h>
+#include <vector>
 
 namespace love
 {
@@ -174,6 +175,7 @@ public:
 		SETTING_MSAA,
 		SETTING_RENDER_TARGET,
 		SETTING_COMPUTE_WRITE,
+		SETTING_VIEW_FORMATS,
 		SETTING_READABLE,
 		SETTING_DEBUGNAME,
 		SETTING_MAX_ENUM
@@ -194,7 +196,19 @@ public:
 		int msaa = 1;
 		bool renderTarget = false;
 		bool computeWrite = false;
+		std::vector<PixelFormat> viewFormats;
 		OptionalBool readable;
+		std::string debugName;
+	};
+
+	struct ViewSettings
+	{
+		Optional<PixelFormat> format;
+		Optional<TextureType> type;
+		OptionalInt mipmapStart;
+		OptionalInt mipmapCount;
+		OptionalInt layerStart;
+		OptionalInt layerCount;
 		std::string debugName;
 	};
 
@@ -228,10 +242,14 @@ public:
 
 	}; // Slices
 
-	static int64 totalGraphicsMemory;
+	struct ViewInfo
+	{
+		Texture *texture;
+		int startMipmap;
+		int startLayer;
+	};
 
-	Texture(Graphics *gfx, const Settings &settings, const Slices *slices);
-	virtual ~Texture();
+	static int64 totalGraphicsMemory;
 
 	// Drawable.
 	void draw(Graphics *gfx, const Matrix4 &m) override;
@@ -255,13 +273,15 @@ public:
 	virtual ptrdiff_t getRenderTargetHandle() const = 0;
 	virtual ptrdiff_t getSamplerHandle() const = 0;
 
-	TextureType getTextureType() const;
-	PixelFormat getPixelFormat() const;
-	MipmapsMode getMipmapsMode() const;
+	TextureType getTextureType() const { return texType; }
+	PixelFormat getPixelFormat() const { return format; }
+	MipmapsMode getMipmapsMode() const { return mipmapsMode; }
 
-	bool isRenderTarget() const;
-	bool isComputeWritable() const;
-	bool isReadable() const;
+	bool isRenderTarget() const { return renderTarget; }
+	bool isComputeWritable() const { return computeWrite; }
+	bool isReadable() const { return readable; }
+
+	const std::vector<PixelFormat> &getViewFormats() const { return viewFormats; }
 
 	bool isCompressed() const;
 	bool isFormatLinear() const;
@@ -285,10 +305,13 @@ public:
 	int getRequestedMSAA() const;
 	virtual int getMSAA() const = 0;
 
-	virtual void setSamplerState(const SamplerState &s);
+	virtual void setSamplerState(const SamplerState &s) = 0;
 	const SamplerState &getSamplerState() const;
 
 	Quad *getQuad() const;
+
+	const ViewInfo &getRootViewInfo() const { return rootView; }
+	const ViewInfo &getParentViewInfo() const { return parentView; }
 
 	const std::string &getDebugName() const { return debugName; }
 
@@ -310,6 +333,10 @@ public:
 
 protected:
 
+	Texture(Graphics *gfx, const Settings &settings, const Slices *slices);
+	Texture(Graphics *gfx, Texture *base, const ViewSettings &viewsettings);
+	virtual ~Texture();
+
 	void setGraphicsMemorySize(int64 size);
 
 	void uploadImageData(love::image::ImageDataBase *d, int level, int slice, int x, int y);
@@ -318,7 +345,10 @@ protected:
 	bool supportsGenerateMipmaps(const char *&outReason) const;
 	virtual void generateMipmapsInternal() = 0;
 
+	SamplerState validateSamplerState(SamplerState s) const;
+
 	bool validateDimensions(bool throwException) const;
+	void validatePixelFormat(Graphics *gfx) const;
 
 	TextureType texType;
 
@@ -326,6 +356,8 @@ protected:
 	bool renderTarget;
 	bool computeWrite;
 	bool readable;
+
+	std::vector<PixelFormat> viewFormats;
 
 	MipmapsMode mipmapsMode;
 
@@ -348,6 +380,9 @@ protected:
 	int64 graphicsMemorySize;
 
 	std::string debugName;
+
+	ViewInfo rootView;
+	ViewInfo parentView;
 
 }; // Texture
 

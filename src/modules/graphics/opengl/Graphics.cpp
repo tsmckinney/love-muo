@@ -106,7 +106,8 @@ love::graphics::Graphics *createInstance()
 }
 
 Graphics::Graphics()
-	: windowHasStencil(false)
+	: love::graphics::Graphics("love.graphics.opengl")
+	, windowHasStencil(false)
 	, mainVAO(0)
 	, internalBackbufferFBO(0)
 	, requestedBackbufferMSAA(0)
@@ -147,11 +148,6 @@ Graphics::~Graphics()
 	delete[] bufferMapMemory;
 }
 
-const char *Graphics::getName() const
-{
-	return "love.graphics.opengl";
-}
-
 love::graphics::StreamBuffer *Graphics::newStreamBuffer(BufferUsage type, size_t size)
 {
 	return CreateStreamBuffer(type, size);
@@ -160,6 +156,11 @@ love::graphics::StreamBuffer *Graphics::newStreamBuffer(BufferUsage type, size_t
 love::graphics::Texture *Graphics::newTexture(const Texture::Settings &settings, const Texture::Slices *data)
 {
 	return new Texture(this, settings, data);
+}
+
+love::graphics::Texture *Graphics::newTextureView(love::graphics::Texture *base, const Texture::ViewSettings &viewsettings)
+{
+	return new Texture(this, base, viewsettings);
 }
 
 love::graphics::ShaderStage *Graphics::newShaderStageInternal(ShaderStageType stage, const std::string &cachekey, const std::string &source, bool gles)

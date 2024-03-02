@@ -60,11 +60,6 @@ static const std::vector<const char*> deviceExtensions = {
 
 constexpr uint32_t USAGES_POLL_INTERVAL = 5000;
 
-const char *Graphics::getName() const
-{
-	return "love.graphics.vulkan";
-}
-
 VkDevice Graphics::getDevice() const
 {
 	return device;
@@ -95,6 +90,7 @@ static void checkOptionalInstanceExtensions(OptionalInstanceExtensions& ext)
 }
 
 Graphics::Graphics()
+	: love::graphics::Graphics("love.graphics.vulkan")
 {
 	if (SDL_Vulkan_LoadLibrary(nullptr))
 		throw love::Exception("could not find vulkan");
@@ -170,6 +166,11 @@ Graphics::~Graphics()
 love::graphics::Texture *Graphics::newTexture(const love::graphics::Texture::Settings &settings, const love::graphics::Texture::Slices *data)
 {
 	return new Texture(this, settings, data);
+}
+
+love::graphics::Texture *Graphics::newTextureView(love::graphics::Texture *base, const Texture::ViewSettings &viewsettings)
+{
+	return new Texture(this, base, viewsettings);
 }
 
 love::graphics::Buffer *Graphics::newBuffer(const love::graphics::Buffer::Settings &settings, const std::vector<love::graphics::Buffer::DataDeclaration> &format, const void *data, size_t size, size_t arraylength)

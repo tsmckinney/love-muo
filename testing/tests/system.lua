@@ -36,6 +36,14 @@ end
 
 
 
+-- love.system.getPreferredLocales
+love.test.system.getPreferredLocales = function(test)
+  local locale = love.system.getPreferredLocales()
+  test:assertNotNil(locale)
+  test:assertEquals('table', type(locale), 'check returns table')
+end
+
+
 -- love.system.getPowerInfo
 love.test.system.getPowerInfo = function(test)
   -- check battery state is one of the documented states

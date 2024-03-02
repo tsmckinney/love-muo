@@ -114,14 +114,7 @@ For sanity-checking, if it's currently not covered or it's not possible to test 
 ## Todo
 If you would like to contribute to the test suite please raise a PR with the main [love-test](https://github.com/ellraiser/love-test) repo.
 
-The following items are all the things still outstanding, expanding on any existing tests is also very welcome!
-- [ ] check for any 12.0 methods in the changelog not yet covered in the test suite
-- [ ] add BMfont alt. tests for font class tests (Rasterizer + GlyphData)
-- [ ] graphics.isCompressed() should have an example of all compressed files
-- [ ] graphics.Mesh should have some graphical tests ideally to check vertex settings w/ shaders
-- [ ] ability to test loading different combinations of modules if needed
-- [ ] more scenario based tests similar to some of the obj class tests
-- [ ] performance tests? need to discuss what + how
+There is a list of outstanding methods that require test coverage in `todo.md`, expanding on any existing tests is also very welcome!
 
 ---
 
@@ -144,7 +137,6 @@ You can specify the test suite is being run on a runner by adding the `--isRunne
 `& 'c:\Program Files\LOVE\love.exe' PATH_TO_TESTING_FOLDER/main.lua --console --runAllTests --isRunner`
 | Test                       |    OS     |      Exception      | Reason |
 | -------------------------- | --------- | ------------------- | ------ |
-| love.graphics.points       |   MacOS   |    1px tolerance    | Points are offset by 1,1 when drawn |
 | love.graphics.setWireframe |   MacOS   |    1px tolerance    | Wireframes are offset by 1,1 when drawn |
 | love.graphica.arc          |   MacOS   |       Skipped       | Arc curves are drawn slightly off at really low scale  |
 | love.graphics.setLineStyle |   Linux   |   1rgba tolerance   | 'Rough' lines blend differently with the background rgba |

@@ -132,8 +132,6 @@ public:
 
 	void requestAttention(bool continuous) override;
 
-	const char *getName() const override;
-
 private:
 
 	struct ContextAttribs
