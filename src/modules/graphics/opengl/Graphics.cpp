@@ -708,24 +708,27 @@ void Graphics::drawQuads(int start, int count, const VertexAttributes &attribute
 
 static void APIENTRY debugCB(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei /*len*/, const GLchar *msg, const GLvoid* /*usr*/)
 {
+	if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+		return;
+
 	// Human-readable strings for the debug info.
 	const char *sourceStr = OpenGL::debugSourceString(source);
 	const char *typeStr = OpenGL::debugTypeString(type);
 	const char *severityStr = OpenGL::debugSeverityString(severity);
 
-	const char *fmt = "OpenGL: %s [source=%s, type=%s, severity=%s, id=%d]\n";
-	printf(fmt, msg, sourceStr, typeStr, severityStr, id);
+	const char *fmt = "OpenGL: [source=%s, type=%s, severity=%s, id=%d]: %s\n";
+	printf(fmt, sourceStr, typeStr, severityStr, id, msg);
 }
 
 void Graphics::setDebug(bool enable)
 {
 	// Make sure debug output is supported. The AMD ext. is a bit different
 	// so we don't make use of it, since AMD drivers now support KHR_debug.
-	if (!(GLAD_VERSION_4_3 || GLAD_KHR_debug || GLAD_ARB_debug_output))
+	if (!(GLAD_VERSION_4_3 || GLAD_ES_VERSION_3_2 || GLAD_KHR_debug || GLAD_ARB_debug_output))
 		return;
 
 	// TODO: We don't support GL_KHR_debug in GLES yet.
-	if (GLAD_ES_VERSION_2_0)
+	if (GLAD_ES_VERSION_2_0 && !GLAD_ES_VERSION_3_2)
 		return;
 
 	// Ugly hack to reduce code duplication.
@@ -741,7 +744,7 @@ void Graphics::setDebug(bool enable)
 		glDebugMessageCallback(nullptr, nullptr);
 
 		// We can disable debug output entirely with KHR_debug.
-		if (GLAD_VERSION_4_3 || GLAD_KHR_debug)
+		if (GLAD_VERSION_4_3 || GLAD_ES_VERSION_3_2 || GLAD_KHR_debug)
 			glDisable(GL_DEBUG_OUTPUT);
 
 		return;
@@ -759,7 +762,7 @@ void Graphics::setDebug(bool enable)
 	glDebugMessageControl(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR, GL_DONT_CARE, 0, 0, GL_FALSE);
 	glDebugMessageControl(GL_DEBUG_SOURCE_SHADER_COMPILER, GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR, GL_DONT_CARE, 0, 0, GL_FALSE);
 
-	if (GLAD_VERSION_4_3 || GLAD_KHR_debug)
+	if (GLAD_VERSION_4_3 || GLAD_ES_VERSION_3_2 || GLAD_KHR_debug)
 		glEnable(GL_DEBUG_OUTPUT);
 
 	::printf("OpenGL debug output enabled (LOVE_GRAPHICS_DEBUG=1)\n");
