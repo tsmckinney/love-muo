@@ -37,7 +37,7 @@
 #include <memory>
 #include <functional>
 #include <set>
-
+#include <tuple>
 
 namespace love
 {
@@ -236,7 +236,7 @@ struct RenderpassState
 	RenderPassConfiguration renderPassConfiguration{};
 	FramebufferConfiguration framebufferConfiguration{};
 	VkPipeline pipeline = VK_NULL_HANDLE;
-	std::vector<VkImage> transitionImages;
+	std::vector<std::tuple<VkImage, PixelFormat>> transitionImages;
 	uint32_t numColorAttachments = 0;
 	float width = 0.0f;
 	float height = 0.0f;
@@ -247,16 +247,6 @@ struct RenderpassState
 	OptionalColorD mainWindowClearColorValue;
 	OptionalDouble mainWindowClearDepthValue;
 	OptionalInt mainWindowClearStencilValue;
-};
-
-struct ScreenshotReadbackBuffer
-{
-	VkBuffer buffer;
-	VmaAllocation allocation;
-	VmaAllocationInfo allocationInfo;
-
-	VkImage image;
-	VmaAllocation imageAllocation;
 };
 
 enum SubmitMode
@@ -281,7 +271,6 @@ public:
 	graphics::GraphicsReadback *newReadbackInternal(ReadbackMethod method, love::graphics::Texture *texture, int slice, int mipmap, const Rect &rect, image::ImageData *dest, int destx, int desty) override;
 	void clear(OptionalColorD color, OptionalInt stencil, OptionalDouble depth) override;
 	void clear(const std::vector<OptionalColorD> &colors, OptionalInt stencil, OptionalDouble depth) override;
-	Matrix4 computeDeviceProjection(const Matrix4 &projection, bool rendertotexture) const override;
 	void discard(const std::vector<bool>& colorbuffers, bool depthstencil) override;
 	void present(void *screenshotCallbackdata) override;
 	void backbufferChanged(int width, int height, int pixelwidth, int pixelheight, bool backbufferstencil, bool backbufferdepth, int msaa) override;
@@ -355,7 +344,6 @@ private:
 	VkCompositeAlphaFlagBitsKHR chooseCompositeAlpha(const VkSurfaceCapabilitiesKHR &capabilities);
 	void createSwapChain();
 	void createImageViews();
-	void createScreenshotCallbackBuffers();
 	VkFramebuffer createFramebuffer(FramebufferConfiguration &configuration);
 	VkFramebuffer getFramebuffer(FramebufferConfiguration &configuration);
 	void createDefaultShaders();
@@ -408,7 +396,9 @@ private:
 	Matrix4 displayRotation;
 	std::vector<VkImage> swapChainImages;
 	VkFormat swapChainImageFormat = VK_FORMAT_UNDEFINED;
+	PixelFormat swapChainPixelFormat = PIXELFORMAT_UNKNOWN;
 	VkFormat depthStencilFormat = VK_FORMAT_UNDEFINED;
+	PixelFormat depthStencilPixelFormat = PIXELFORMAT_UNKNOWN;
 	VkExtent2D swapChainExtent = VkExtent2D();
 	std::vector<VkImageView> swapChainImageViews;
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -449,7 +439,6 @@ private:
 	// We need a vector for each frame in flight.
 	std::vector<std::vector<std::function<void()>>> cleanUpFunctions;
 	std::vector<std::vector<std::function<void()>>> readbackCallbacks;
-	std::vector<ScreenshotReadbackBuffer> screenshotReadbackBuffers;
 	std::set<StrongRef<Shader>> usedShadersInFrame;
 	RenderpassState renderPassState;
 };

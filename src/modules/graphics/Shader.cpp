@@ -92,10 +92,10 @@ static const char render_uniforms[] = R"(
 // but we can't guarantee that highp is always supported in fragment shaders...
 // We *really* don't want to use mediump for these in vertex shaders though.
 #ifdef LOVE_SPLIT_UNIFORMS_PER_DRAW
-uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw[12];
+uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw[13];
 uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw2[1];
 #else
-uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw[13];
+uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw[14];
 #endif
 
 // Older GLSL doesn't support preprocessor line continuations...
@@ -107,12 +107,15 @@ uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw[13];
 
 #define CurrentDPIScale (love_UniformsPerDraw[8].w)
 #define ConstantPointSize (love_UniformsPerDraw[9].w)
-#define ConstantColor (love_UniformsPerDraw[11])
+
+#define love_ClipSpaceParams (love_UniformsPerDraw[11])
+
+#define ConstantColor (love_UniformsPerDraw[12])
 
 #ifdef LOVE_SPLIT_UNIFORMS_PER_DRAW
 #define love_ScreenSize (love_UniformsPerDraw2[0])
 #else
-#define love_ScreenSize (love_UniformsPerDraw[12])
+#define love_ScreenSize (love_UniformsPerDraw[13])
 #endif
 
 // Alternate names
@@ -124,16 +127,17 @@ uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw[13];
 
 static const char global_functions[] = R"(
 #ifdef GL_ES
+	precision mediump sampler2D;
 	#if __VERSION__ >= 300 || defined(LOVE_EXT_TEXTURE_ARRAY_ENABLED)
-		precision lowp sampler2DArray;
+		precision mediump sampler2DArray;
 	#endif
 	#if __VERSION__ >= 300 || defined(GL_OES_texture_3D)
-		precision lowp sampler3D;
+		precision mediump sampler3D;
 	#endif
 	#if __VERSION__ >= 300 && !defined(LOVE_GLSL1_ON_GLSL3)
-		precision lowp sampler2DShadow;
-		precision lowp samplerCubeShadow;
-		precision lowp sampler2DArrayShadow;
+		precision mediump sampler2DShadow;
+		precision mediump samplerCubeShadow;
+		precision mediump sampler2DArrayShadow;
 	#endif
 #endif
 
@@ -247,7 +251,13 @@ static const char vertex_header[] = R"(
 #endif
 )";
 
-static const char vertex_functions[] = R"()";
+static const char vertex_functions[] = R"(
+vec4 love_clipSpaceTransform(vec4 clipPosition) {
+	clipPosition.y *= love_ClipSpaceParams.x;
+	clipPosition.z = (love_ClipSpaceParams.y * clipPosition.z + love_ClipSpaceParams.z * clipPosition.w) * love_ClipSpaceParams.w;
+	return clipPosition;
+}
+)";
 
 static const char vertex_main[] = R"(
 LOVE_IO_LOCATION(0) attribute vec4 VertexPosition;
@@ -263,6 +273,7 @@ void main() {
 	VaryingTexCoord = VertexTexCoord;
 	VaryingColor = gammaCorrectColor(VertexColor) * ConstantColor;
 	love_Position = position(ClipSpaceFromLocal, VertexPosition);
+	love_Position = love_clipSpaceTransform(love_Position);
 }
 )";
 
@@ -271,6 +282,7 @@ void vertexmain();
 
 void main() {
 	vertexmain();
+	love_Position = love_clipSpaceTransform(love_Position);
 }
 )";
 
@@ -587,7 +599,7 @@ static Shader::EntryPoint getComputeEntryPoint(const std::string &src, const std
 
 } // glsl
 
-static_assert(sizeof(Shader::BuiltinUniformData) == sizeof(float) * 4 * 13, "Update the array in wrap_GraphicsShader.lua if this changes.");
+static_assert(sizeof(Shader::BuiltinUniformData) == sizeof(float) * 4 * 14, "Update the array in wrap_GraphicsShader.lua if this changes.");
 
 love::Type Shader::type("Shader", &Object::type);
 
@@ -790,6 +802,28 @@ bool Shader::isDefaultActive()
 	}
 
 	return false;
+}
+
+Vector4 Shader::computeClipSpaceParams(uint32 clipSpaceTransformFlags)
+{
+	// See the love_clipSpaceTransform vertex shader function.
+	Vector4 params(1.0f, 1.0f, 0.0f, 1.0f);
+
+	if (clipSpaceTransformFlags & CLIP_TRANSFORM_FLIP_Y)
+		params.x = -1.0f;
+
+	if (clipSpaceTransformFlags & CLIP_TRANSFORM_Z_NEG1_1_TO_0_1)
+	{
+		params.z = 1.0f;
+		params.w = 0.5f;
+	}
+	else if (clipSpaceTransformFlags & CLIP_TRANSFORM_Z_0_1_TO_NEG1_1)
+	{
+		params.y = 2.0f;
+		params.z = -1.0f;
+	}
+
+	return params;
 }
 
 const Shader::UniformInfo *Shader::getUniformInfo(const std::string &name) const

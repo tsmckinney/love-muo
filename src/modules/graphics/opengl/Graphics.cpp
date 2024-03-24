@@ -188,18 +188,6 @@ love::graphics::GraphicsReadback *Graphics::newReadbackInternal(ReadbackMethod m
 	return new GraphicsReadback(this, method, texture, slice, mipmap, rect, dest, destx, desty);
 }
 
-Matrix4 Graphics::computeDeviceProjection(const Matrix4 &projection, bool rendertotexture) const
-{
-	uint32 flags = DEVICE_PROJECTION_DEFAULT;
-
-	// The projection matrix is flipped compared to rendering to a texture, due
-	// to OpenGL considering (0,0) bottom-left instead of top-left.
-	if (!rendertotexture)
-		flags |= DEVICE_PROJECTION_FLIP_Y;
-
-	return calculateDeviceProjection(projection, flags);
-}
-
 void Graphics::backbufferChanged(int width, int height, int pixelwidth, int pixelheight, bool backbufferstencil, bool backbufferdepth, int msaa)
 {
 	bool changed = width != this->width || height != this->height
@@ -1693,6 +1681,17 @@ void Graphics::initCapabilities()
 		pixelFormatUsage[i][0] = computePixelFormatUsage(format, false);
 		pixelFormatUsage[i][1] = computePixelFormatUsage(format, true);
 	}
+
+#ifdef LOVE_ANDROID
+	// This can't be done in initContext with the rest of the bug checks because
+	// isPixelFormatSupported relies on state initialized here / after init.
+	if (GLAD_ES_VERSION_3_0 && !isPixelFormatSupported(PIXELFORMAT_R8_UNORM, PIXELFORMATUSAGEFLAGS_SAMPLE | PIXELFORMATUSAGEFLAGS_RENDERTARGET))
+	{
+		gl.bugs.brokenR8PixelFormat = true;
+		pixelFormatUsage[PIXELFORMAT_R8_UNORM][0] = computePixelFormatUsage(PIXELFORMAT_R8_UNORM, false);
+		pixelFormatUsage[PIXELFORMAT_R8_UNORM][1] = computePixelFormatUsage(PIXELFORMAT_R8_UNORM, true);
+	}
+#endif
 }
 
 uint32 Graphics::computePixelFormatUsage(PixelFormat format, bool readable)
