@@ -208,7 +208,7 @@ Shader::Shader(id<MTLDevice> device, StrongRef<love::graphics::ShaderStage> stag
 		forcedefault = true;
 #endif
 
-		if (!tshader->parse(GetDefaultResources(), defaultversion, defaultprofile, forcedefault, forwardcompat, EShMsgSuppressWarnings))
+		if (!tshader->parse(GetResources(), defaultversion, defaultprofile, forcedefault, forwardcompat, EShMsgSuppressWarnings))
 		{
 			const char *stagename = "unknown";
 			ShaderStage::getConstant(stage, stagename);
@@ -948,7 +948,7 @@ id<MTLRenderPipelineState> Shader::getCachedRenderPipeline(const RenderPipelineK
 			const auto &attrib = attributes.attribs[i];
 			int metalBufferIndex = firstVertexBufferBinding + attrib.bufferIndex;
 
-			vertdesc.attributes[i].format = getMTLVertexFormat(attrib.format);
+			vertdesc.attributes[i].format = getMTLVertexFormat(attrib.getFormat());
 			vertdesc.attributes[i].offset = attrib.offsetFromVertex;
 			vertdesc.attributes[i].bufferIndex = metalBufferIndex;
 

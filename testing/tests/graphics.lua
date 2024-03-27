@@ -10,56 +10,53 @@
 
 -- GraphicsBuffer (love.graphics.newBuffer)
 love.test.graphics.Buffer = function(test)
+
+  -- setup vertex data and create some buffers
   local vertexformat = {
     {name="VertexPosition", format="floatvec2"},
     {name="VertexTexCoord", format="floatvec2"},
     {name="VertexColor", format="unorm8vec4"},
   }
-
   local vertexdata = {
     {0,  0,  0, 0, 1, 0, 1, 1},
     {10, 0,  1, 0, 0, 1, 1, 1},
     {10, 10, 1, 1, 0, 0, 1, 1},
     {0,  10, 0, 1, 1, 0, 0, 1},
   }
-
   local flatvertexdata = {}
   for i, vert in ipairs(vertexdata) do
     for j, v in ipairs(vert) do
       table.insert(flatvertexdata, v)
     end
   end
-
   local vertexbuffer1 = love.graphics.newBuffer(vertexformat, 4, {vertex=true, debugname='testvertexbuffer'})
   local vertexbuffer2 = love.graphics.newBuffer(vertexformat, vertexdata, {vertex=true})
-
   test:assertObject(vertexbuffer1)
   test:assertObject(vertexbuffer2)
 
+  -- check buffer properties
   test:assertEquals(4, vertexbuffer1:getElementCount(), 'check vertex count 1')
   test:assertEquals(4, vertexbuffer2:getElementCount(), 'check vertex count 2')
-
   -- vertex buffers have their elements tightly packed.
   test:assertEquals(20, vertexbuffer1:getElementStride(), 'check vertex array stride')
-
   test:assertEquals(20 * 4, vertexbuffer1:getSize(), 'check vertex buffer size')
-
   vertexbuffer1:setArrayData(vertexdata)
   vertexbuffer1:setArrayData(flatvertexdata)
-
   vertexbuffer1:clear(8, 8) -- partial clear (the first texcoord)
 
+  -- check buffer types
   test:assertTrue(vertexbuffer1:isBufferType('vertex'), 'check is vertex buffer')
   test:assertFalse(vertexbuffer1:isBufferType('index'), 'check is not index buffer')
   test:assertFalse(vertexbuffer1:isBufferType('texel'), 'check is not texel buffer')
   test:assertFalse(vertexbuffer1:isBufferType('shaderstorage'), 'check is not shader storage buffer')
 
+  -- check debug name
   test:assertEquals('testvertexbuffer', vertexbuffer1:getDebugName(), 'check buffer debug name')
 
+  -- check buffer format and format properties
   local format = vertexbuffer1:getFormat()
   test:assertEquals('table', type(format), 'check buffer format is table')
   test:assertEquals(#vertexformat, #format, 'check buffer format length')
-
   for i, v in ipairs(vertexformat) do
     test:assertEquals(v.name, format[i].name, string.format('check buffer format %d name', i))
     test:assertEquals(v.format, format[i].format, string.format('check buffer format %d format', i))
@@ -67,8 +64,10 @@ love.test.graphics.Buffer = function(test)
     test:assertNotNil(format[i].offset)
   end
 
+  -- check index buffer
   local indexbuffer = love.graphics.newBuffer('uint16', 128, {index=true})
   test:assertTrue(indexbuffer:isBufferType('index'), 'check is index buffer')
+
 end
 
 
@@ -80,22 +79,22 @@ love.test.graphics.ShaderStorageBuffer = function(test)
     return
   end
 
+  -- setup buffer
   local format = {
     { name="1", format="float" },
     { name="2", format="floatmat4x4" },
     { name="3", format="floatvec2" }
   }
-
   local buffer = love.graphics.newBuffer(format, 1, {shaderstorage = true})
-
   test:assertEquals(96, buffer:getElementStride(), 'check shader storage buffer element stride')
 
+  -- set new data
   local data = {}
   for i = 1, 19 do
     data[i] = 0
   end
-
   buffer:setArrayData(data)
+
 end
 
 
@@ -201,6 +200,40 @@ love.test.graphics.Canvas = function(test)
   love.graphics.setCanvas()
   local imgdata2 = love.graphics.readbackTexture(canvas)
   test:compareImg(imgdata2)
+
+  -- check y-down
+  local shader1 = love.graphics.newShader[[
+    vec4 effect(vec4 c, Image tex, vec2 tc, vec2 pc) {
+      return tc.y > 0.5 ? vec4(1.0, 0.0, 0.0, 1.0) : vec4(0.0, 1.0, 0.0, 1.0);
+    }
+  ]]
+  local shader2 = love.graphics.newShader[[
+    vec4 effect(vec4 c, Image tex, vec2 tc, vec2 pc) {
+      // rounding during quantization from float to unorm8 doesn't seem to be
+      // totally consistent across devices, lets do it ourselves.
+      highp vec2 value = pc / love_ScreenSize.xy;
+      highp vec2 quantized = (floor(255.0 * value + 0.5) + 0.1) / 255.0;
+      return vec4(quantized, 0.0, 1.0);
+    }
+  ]]
+  local img = love.graphics.newImage(love.image.newImageData(1, 1))
+
+  love.graphics.push("all")
+    love.graphics.setCanvas(canvas)
+    love.graphics.setShader(shader1)
+    love.graphics.draw(img, 0, 0, 0, canvas:getDimensions())
+  love.graphics.pop()
+  local imgdata3 = love.graphics.readbackTexture(canvas)
+  test:compareImg(imgdata3)
+
+  love.graphics.push("all")
+    love.graphics.setCanvas(canvas)
+    love.graphics.setShader(shader2)
+    love.graphics.draw(img, 0, 0, 0, canvas:getDimensions())
+  love.graphics.pop()
+  local imgdata4 = love.graphics.readbackTexture(canvas)
+  test:compareImg(imgdata4)
+
 
   -- check depth samples
   local dcanvas = love.graphics.newCanvas(100, 100, {
@@ -1170,7 +1203,7 @@ love.test.graphics.arc = function(test)
     love.graphics.setColor(1, 1, 1, 1)
   love.graphics.setCanvas()
   local imgdata3 = love.graphics.readbackTexture(canvas)
-  if GITHUB_RUNNER and love.system.getOS() == 'OS X' then
+  if GITHUB_RUNNER and test:isOS('OS X') then
     -- on macosx runners, the arcs are not drawn as accurately at low res
     -- there's a couple pixels different in the curve of the arc but as we
     -- are at such a low resolution I think that can be expected
@@ -1452,15 +1485,29 @@ end
 -- love.graphics.captureScreenshot
 love.test.graphics.captureScreenshot = function(test)
   love.graphics.captureScreenshot('example-screenshot.png')
-  test:waitFrames(10)
+  test:waitFrames(1)
   -- need to wait until end of the frame for the screenshot
-  test:assertNotNil(love.filesystem.openFile('example-screenshot.png', 'r'))
+  test:assertTrue(love.filesystem.exists('example-screenshot.png'))
   love.filesystem.remove('example-screenshot.png')
   -- test callback version
+  local cbdata = nil
+  local prevtextcommand = TextCommand
+  TextCommand = "Capturing screenshot"
   love.graphics.captureScreenshot(function (idata)
     test:assertNotEquals(nil, idata, 'check we have image data')
+    cbdata = idata
   end)
-  test:waitFrames(10)
+  test:waitFrames(1)
+  TextCommand = prevtextcommand
+  test:assertNotNil(cbdata)
+
+  if test:isOS('iOS', 'Android') then
+    -- Mobile operating systems don't let us control the window resolution,
+    -- so we can't compare the reference image properly.
+    test:assertTrue(true, 'skip test')
+  else
+    test:compareImg(cbdata)
+  end
 end
 
 
@@ -1572,11 +1619,19 @@ love.test.graphics.newSpriteBatch = function(test)
 end
 
 
--- love.graphics.newText
+-- love.graphics.newTextBatch
 -- @NOTE this is just basic nil checking, objs have their own test method
 love.test.graphics.newTextBatch = function(test)
   local font = love.graphics.newFont('resources/font.ttf')
   test:assertObject(love.graphics.newTextBatch(font, 'helloworld'))
+end
+
+
+-- love.graphics.newTexture
+-- @NOTE this is just basic nil checking, objs have their own test method
+love.test.graphics.newTexture = function(test)
+  local imgdata = love.image.newImageData('resources/love.png')
+  test:assertObject(love.graphics.newTexture(imgdata))
 end
 
 
@@ -2102,6 +2157,23 @@ love.test.graphics.setFrontFaceWinding = function(test)
   test:assertEquals('ccw', love.graphics.getFrontFaceWinding(), 'check ffw ccw set')
   love.graphics.setFrontFaceWinding(original)
   -- @TODO better graphics drawing specific test
+
+  local shader = love.graphics.newShader[[
+vec4 effect(vec4 c, Image tex, vec2 tc, vec2 pc) {
+  return gl_FrontFacing ? vec4(0.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0); 
+}
+  ]]
+  local dummyimg = love.graphics.newImage(love.image.newImageData(1, 1))
+
+  local canvas = love.graphics.newCanvas(16, 16)
+  love.graphics.push("all")
+    love.graphics.setCanvas(canvas)
+    love.graphics.setShader(shader)
+    love.graphics.draw(dummyimg, 0, 0, 0, 16, 16)
+  love.graphics.pop()
+
+  local imgdata = love.graphics.readbackTexture(canvas)
+  test:compareImg(imgdata)
 end
 
 
@@ -2153,7 +2225,7 @@ love.test.graphics.setLineStyle = function(test)
   love.graphics.setCanvas()
   local imgdata = love.graphics.readbackTexture(canvas)
   -- linux runner needs a 1/255 tolerance for the blend between a rough line + bg 
-  if GITHUB_RUNNER and love.system.getOS() == 'Linux' then
+  if GITHUB_RUNNER and test:isOS('Linux') then
     test.rgba_tolerance = 1
   end
   test:compareImg(imgdata)
@@ -2286,7 +2358,7 @@ love.test.graphics.setWireframe = function(test)
     love.graphics.setWireframe(false)
     local imgdata = love.graphics.readbackTexture(canvas)
     -- on macOS runners wireframes are drawn 1px off from the target
-    if GITHUB_RUNNER and love.system.getOS() == 'OS X' then
+    if GITHUB_RUNNER and test:isOS('OS X') then
       test.pixel_tolerance = 1
     end
     test:compareImg(imgdata)
@@ -2653,8 +2725,8 @@ love.test.graphics.getSupported = function(test)
     'clampzero', 'lighten', 'glsl3', 'instancing', 'fullnpot', 
     'pixelshaderhighp', 'shaderderivatives', 'indirectdraw', 'mipmaprange',
     'copyrendertargettobuffer', 'copytexturetobuffer', 'copybuffer',
-    'indexbuffer32bit', 'multirendertargetformats', 'clampone', 'blendminmax',
-    'glsl4'
+    'copybuffertotexture', 'indexbuffer32bit', 'multirendertargetformats', 
+    'clampone', 'blendminmax', 'glsl4'
   }
   local features = love.graphics.getSupported()
   for g=1,#gfs do
