@@ -737,6 +737,8 @@ set(LOVE_SRC_MODULE_JOYSTICK_ROOT
 set(LOVE_SRC_MODULE_JOYSTICK_SDL
 	src/modules/joystick/sdl/Joystick.cpp
 	src/modules/joystick/sdl/Joystick.h
+	src/modules/joystick/sdl/JoystickSDL3.cpp
+	src/modules/joystick/sdl/JoystickSDL3.h
 	src/modules/joystick/sdl/JoystickModule.cpp
 	src/modules/joystick/sdl/JoystickModule.h
 )
