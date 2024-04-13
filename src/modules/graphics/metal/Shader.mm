@@ -288,8 +288,19 @@ void Shader::buildLocalUniforms(const spirv_cross::CompilerMSL &msl, const spirv
 		switch (membertype.basetype)
 		{
 			case SPIRType::Struct:
-				name += ".";
-				buildLocalUniforms(msl, membertype, offset, name);
+				if (membertype.op == spv::OpTypeArray)
+				{
+					for (uint32 i = 0; i < membertype.array[0]; i++)
+					{
+						std::string structname = name + "[" + std::to_string(i) + "].";
+						buildLocalUniforms(msl, membertype, offset, structname);
+					}
+				}
+				else
+				{
+					std::string structname = name + ".";
+					buildLocalUniforms(msl, membertype, offset, structname);
+				}
 				continue;
 			case SPIRType::Int:
 			case SPIRType::UInt:
@@ -465,9 +476,15 @@ void Shader::compileFromGLSLang(id<MTLDevice> device, const glslang::TProgram &p
 
 			for (const auto &varying : resources.stage_outputs)
 			{
-//				printf("vertex shader output %s: %d\n", inp.name.c_str(), msl.get_decoration(inp.id, spv::DecorationLocation));
 				varyings[varying.name] = nextVaryingLocation;
-				msl.set_decoration(varying.id, spv::DecorationLocation, nextVaryingLocation++);
+				msl.set_decoration(varying.id, spv::DecorationLocation, nextVaryingLocation);
+
+				const auto &type = msl.get_type(varying.base_type_id);
+				int count = type.array.empty() ? 1 : type.array[0];
+				if (type.op == spv::OpTypeMatrix)
+					count *= type.columns;
+
+				nextVaryingLocation += count;
 			}
 		}
 		else if (stageindex == SHADERSTAGE_PIXEL)
@@ -697,40 +714,10 @@ void Shader::updateUniform(const UniformInfo *info, int count)
 
 	count = std::min(count, info->count);
 
-	// TODO: store some of this in UniformInfo.
-	size_t elementsize = info->components * 4;
-	if (info->baseType == UNIFORM_MATRIX)
-		elementsize = info->matrix.columns * info->matrix.rows * 4;
-
 	size_t offset = (const uint8 *)info->data - localUniformStagingData;
+	uint8 *dst = localUniformBufferData + offset;
 
-	// Assuming std140 packing rules, the source data can only be direct-copied
-	// to the uniform buffer in certain cases because it's tightly packed whereas
-	// the buffer's data isn't.
-	if (elementsize * info->count == info->dataSize || (count == 1 && info->baseType != UNIFORM_MATRIX))
-	{
-		memcpy(localUniformBufferData + offset, info->data, elementsize * count);
-	}
-	else
-	{
-		int veccount = count;
-		int comp = info->components;
-
-		if (info->baseType == UNIFORM_MATRIX)
-		{
-			veccount *= info->matrix.rows;
-			comp = info->matrix.columns;
-		}
-
-		const int *src = info->ints;
-		int *dst = (int *) (localUniformBufferData + offset);
-
-		for (int i = 0; i < veccount; i++)
-		{
-			for (int c = 0; c < comp; c++)
-				dst[i * 4 + c] = src[i * comp + c];
-		}
-	}
+	copyToUniformBuffer(info, info->data, dst, count);
 }
 
 void Shader::sendTextures(const UniformInfo *info, love::graphics::Texture **textures, int count)

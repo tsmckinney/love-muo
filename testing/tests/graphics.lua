@@ -122,6 +122,8 @@ love.test.graphics.Canvas = function(test)
   test:assertEquals(1, canvas:getDepth(), 'check depth is 2d')
   test:assertEquals(nil, canvas:getDepthSampleMode(), 'check depth sample nil')
 
+  local maxanisotropy = love.graphics.getSystemLimits().anisotropy
+
   -- check fliter
   local min1, mag1, ani1 = canvas:getFilter()
   test:assertEquals('nearest', min1, 'check filter def min')
@@ -131,7 +133,7 @@ love.test.graphics.Canvas = function(test)
   local min2, mag2, ani2 = canvas:getFilter()
   test:assertEquals('linear', min2, 'check filter changed min')
   test:assertEquals('linear', mag2, 'check filter changed mag')
-  test:assertEquals(2, ani2, 'check filter changed ani')
+  test:assertEquals(math.min(maxanisotropy, 2), ani2, 'check filter changed ani')
 
   -- check layer
   test:assertEquals(1, canvas:getLayerCount(), 'check 1 layer for 2d')
@@ -345,6 +347,8 @@ love.test.graphics.Image = function(test)
   test:assertEquals(1, image:getDepth(), 'check depth is 2d')
   test:assertEquals(nil, image:getDepthSampleMode(), 'check depth sample nil')
 
+  local maxanisotropy = love.graphics.getSystemLimits().anisotropy
+
   -- check filter
   local min1, mag1, ani1 = image:getFilter()
   test:assertEquals('nearest', min1, 'check filter def min')
@@ -354,7 +358,7 @@ love.test.graphics.Image = function(test)
   local min2, mag2, ani2 = image:getFilter()
   test:assertEquals('linear', min2, 'check filter changed min')
   test:assertEquals('linear', mag2, 'check filter changed mag')
-  test:assertEquals(2, ani2, 'check filter changed ani')
+  test:assertEquals(math.min(maxanisotropy, 2), ani2, 'check filter changed ani')
   image:setFilter('nearest', 'nearest', 1)
 
   -- check layers
@@ -464,8 +468,8 @@ love.test.graphics.Mesh = function(test)
 
   -- check def vertex format
   local format = mesh1:getVertexFormat()
-  test:assertEquals('floatvec2', format[2][2], 'check def vertex format 2')
-  test:assertEquals('VertexColor', format[3][1], 'check def vertex format 3')
+  test:assertEquals('floatvec2', format[2].format, 'check def vertex format 2')
+  test:assertEquals('VertexColor', format[3].name, 'check def vertex format 3')
 
   -- check vertext attributes
   test:assertTrue(mesh1:isAttributeEnabled('VertexPosition'), 'check def attribute VertexPosition')
@@ -915,16 +919,90 @@ love.test.graphics.Shader = function(test)
       sampler2D tex;
     };
 
-    uniform Data data[3];
+    uniform Data data;
+    uniform Data dataArray[3];
 
     vec4 effect(vec4 vcolor, Image tex, vec2 tc, vec2 pc) {
-      return data[1].boolValue ? Texel(data[0].tex, tc) : vec4(0.0, 0.0, 0.0, 0.0);
+      return (data.boolValue && dataArray[1].boolValue) ? Texel(dataArray[0].tex, tc) : vec4(0.0, 0.0, 0.0, 0.0);
     }
   ]]
 
-  shader6:send("data[1].boolValue", true)
-  shader6:send("data[0].tex", canvas2)
+  shader6:send("data.boolValue", true)
+  shader6:send("dataArray[1].boolValue", true)
+  shader6:send("dataArray[0].tex", canvas2)
 
+  local shader7 = love.graphics.newShader[[
+    uniform vec3 vec3s[3];
+
+    vec4 effect(vec4 vcolor, Image tex, vec2 tc, vec2 pc) {
+      return vec4(vec3s[1], 1.0);
+    }
+  ]]
+
+  shader7:send("vec3s", {0, 0, 1}, {0, 1, 0}, {1, 0, 0})
+
+  local canvas3 = love.graphics.newCanvas(16, 16)
+  love.graphics.push("all")
+    love.graphics.setCanvas(canvas3)
+    love.graphics.setShader(shader7)
+    love.graphics.rectangle("fill", 0, 0, 16, 16)
+  love.graphics.pop()
+  local imgdata2 = love.graphics.readbackTexture(canvas3)
+  test:compareImg(imgdata2)
+
+  if love.graphics.getSupported().glsl3 then
+    local shader8 = love.graphics.newShader[[
+      #pragma language glsl3
+      #ifdef GL_ES
+        precision highp float;
+      #endif
+
+      varying vec4 VaryingUnused1;
+      varying mat3 VaryingMatrix;
+      flat varying ivec4 VaryingInt;
+
+      #ifdef VERTEX
+      in vec4 VertexPosition;
+      in ivec4 IntAttributeUnused;
+
+      void vertexmain()
+      {
+        VaryingMatrix = mat3(vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1));
+        VaryingInt = ivec4(1, 1, 1, 1);
+        love_Position = TransformProjectionMatrix * VertexPosition;
+      }
+      #endif
+
+      #ifdef PIXEL
+      out ivec4 outData;
+
+      void pixelmain()
+      {
+        outData = ivec4(VaryingMatrix[1][1] > 0.0 ? 1 : 0, 1, VaryingInt.x, 1);
+      }
+      #endif
+    ]]
+
+    local canvas4 = love.graphics.newCanvas(16, 16, {format="rgba8i"})
+      love.graphics.push("all")
+      love.graphics.setBlendMode("none")
+      love.graphics.setCanvas(canvas4)
+      love.graphics.setShader(shader8)
+      love.graphics.rectangle("fill", 0, 0, 16, 16)
+    love.graphics.pop()
+
+    local intimagedata = love.graphics.readbackTexture(canvas4)
+    local imgdata3 = love.image.newImageData(16, 16, "rgba8")
+    for y=0, 15 do
+      for x=0, 15 do
+        local ir, ig, ib, ia = intimagedata:getInt8(4 * (y * 16 + x), 4)
+        imgdata3:setPixel(x, y, ir, ig, ib, ia)
+      end
+    end
+    test:compareImg(imgdata3)
+  else
+    test:assertTrue(true, "skip shader IO test")
+  end
 end
 
 
@@ -2464,6 +2542,7 @@ love.test.graphics.push = function(test)
     love.graphics.setColor(1, 0, 0, 1)
     love.graphics.rectangle('fill', 0, 0, 1, 1)
     love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.pop()
   love.graphics.setCanvas()
   local imgdata = love.graphics.readbackTexture(canvas)
   test:compareImg(imgdata)
@@ -2682,7 +2761,8 @@ love.test.graphics.getTextureFormats = function(test)
     'rg11b10f', 'ASTC10x8', 'ASTC10x10', 'ASTC12x10', 'ASTC12x12', 'normal',
     'srgba8', 'la8', 'ASTC10x6', 'ASTC8x8', 'ASTC6x6', 'ASTC5x5', 'EACrgs',
     'EACrs', 'ETC2rgba1', 'ETC2rgb', 'PVR1rgba4', 'PVR1rgb4', 'BC6h',
-    'BC5', 'BC4', 'DXT3', 'stencil8', 'rgba16ui', 'bgra8srgb'
+    'BC5', 'BC4', 'DXT3', 'rgba16ui', 'bgra8srgb',
+    'depth16', 'depth24', 'depth32f', 'depth24stencil8', 'depth32fstencil8', 'stencil8'
   }
   local supported = love.graphics.getTextureFormats({ canvas = true })
   test:assertNotNil(supported)

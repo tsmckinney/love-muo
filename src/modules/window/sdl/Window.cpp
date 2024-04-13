@@ -106,6 +106,12 @@ Window::Window()
 
 	// Make sure the screensaver doesn't activate by default.
 	setDisplaySleepEnabled(false);
+
+#ifdef LOVE_WINDOWS
+	// Turned off by default, because it (ironically) causes stuttering issues
+	// on some setups. More investigation is needed before enabling it.
+	canUseDwmFlush = SDL_GetHintBoolean("LOVE_GRAPHICS_VSYNC_DWM", SDL_FALSE) != SDL_FALSE;
+#endif
 }
 
 Window::~Window()
@@ -1486,7 +1492,7 @@ void Window::swapBuffers()
 		// - DWM refreshes don't always match the refresh rate of the monitor the window is in (or the requested swap
 		//   interval), so we only use it when they do match.
 		// - The user may force GL vsync, and DwmFlush shouldn't be used together with GL vsync.
-		if (!settings.fullscreen && swapInterval == 1)
+		if (canUseDwmFlush && !settings.fullscreen && swapInterval == 1)
 		{
 			// Desktop composition is always enabled in Windows 8+. But DwmIsCompositionEnabled won't always return true...
 			// (see DwmIsCompositionEnabled docs).
@@ -1500,15 +1506,27 @@ void Window::swapBuffers()
 					dwmRefreshRate = (double)info.rateRefresh.uiNumerator / (double)info.rateRefresh.uiDenominator;
 
 				SDL_DisplayMode dmode = {};
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+				SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+				const SDL_DisplayMode* modePtr = SDL_GetCurrentDisplayMode(display);
+				if (modePtr)
+					dmode = *modePtr;
+#else
 				int displayindex = SDL_GetWindowDisplayIndex(window);
 
 				if (displayindex >= 0)
 					SDL_GetCurrentDisplayMode(displayindex, &dmode);
+#endif
 
 				if (dmode.refresh_rate > 0 && dwmRefreshRate > 0 && (fabs(dmode.refresh_rate - dwmRefreshRate) < 2))
 				{
 					SDL_GL_SetSwapInterval(0);
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+					int interval = 0;
+					if (SDL_GL_GetSwapInterval(&interval) == 0 && interval == 0)
+#else
 					if (SDL_GL_GetSwapInterval() == 0)
+#endif
 						useDwmFlush = true;
 					else
 						SDL_GL_SetSwapInterval(swapInterval);
@@ -1763,25 +1781,29 @@ void Window::requestAttention(bool continuous)
 	if (hasFocus())
 		return;
 
+	FLASHWINFO flashinfo = { sizeof(FLASHWINFO) };
+
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+	flashinfo.hwnd = (HWND)SDL_GetProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+#else
 	SDL_SysWMinfo wminfo = {};
 	SDL_VERSION(&wminfo.version);
+	if (!SDL_GetWindowWMInfo(window, &wminfo))
+		return;
 
-	if (SDL_GetWindowWMInfo(window, &wminfo))
+	flashinfo.hwnd = wminfo.info.win.window;
+#endif
+
+	flashinfo.uCount = 1;
+	flashinfo.dwFlags = FLASHW_ALL;
+
+	if (continuous)
 	{
-		FLASHWINFO flashinfo = {};
-		flashinfo.cbSize = sizeof(FLASHWINFO);
-		flashinfo.hwnd = wminfo.info.win.window;
-		flashinfo.uCount = 1;
-		flashinfo.dwFlags = FLASHW_ALL;
-
-		if (continuous)
-		{
-			flashinfo.uCount = 0;
-			flashinfo.dwFlags |= FLASHW_TIMERNOFG;
-		}
-
-		FlashWindowEx(&flashinfo);
+		flashinfo.uCount = 0;
+		flashinfo.dwFlags |= FLASHW_TIMERNOFG;
 	}
+
+	FlashWindowEx(&flashinfo);
 
 #elif defined(LOVE_MACOS)
 
