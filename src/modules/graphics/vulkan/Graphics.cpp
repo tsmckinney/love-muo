@@ -739,7 +739,6 @@ void Graphics::initCapabilities()
 	capabilities.features[FEATURE_MULTI_RENDER_TARGET_FORMATS] = true;
 	capabilities.features[FEATURE_CLAMP_ZERO] = true;
 	capabilities.features[FEATURE_CLAMP_ONE] = true;
-	capabilities.features[FEATURE_BLEND_MINMAX] = true;
 	capabilities.features[FEATURE_LIGHTEN] = true;
 	capabilities.features[FEATURE_FULL_NPOT] = true;
 	capabilities.features[FEATURE_PIXEL_SHADER_HIGHP] = true;
@@ -748,14 +747,9 @@ void Graphics::initCapabilities()
 	capabilities.features[FEATURE_GLSL4] = true;
 	capabilities.features[FEATURE_INSTANCING] = true;
 	capabilities.features[FEATURE_TEXEL_BUFFER] = true;
-	capabilities.features[FEATURE_INDEX_BUFFER_32BIT] = true;
-	capabilities.features[FEATURE_COPY_BUFFER] = true;
-	capabilities.features[FEATURE_COPY_BUFFER_TO_TEXTURE] = true;
 	capabilities.features[FEATURE_COPY_TEXTURE_TO_BUFFER] = true;
-	capabilities.features[FEATURE_COPY_RENDER_TARGET_TO_BUFFER] = true;
-	capabilities.features[FEATURE_MIPMAP_RANGE] = true;
 	capabilities.features[FEATURE_INDIRECT_DRAW] = true;
-	static_assert(FEATURE_MAX_ENUM == 19, "Graphics::initCapabilities must be updated when adding a new graphics feature!");
+	static_assert(FEATURE_MAX_ENUM == 13, "Graphics::initCapabilities must be updated when adding a new graphics feature!");
 
 	VkPhysicalDeviceProperties properties;
 	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
@@ -935,7 +929,7 @@ void Graphics::drawQuads(int start, int count, const VertexAttributes &attribute
 	const int MAX_VERTICES_PER_DRAW = LOVE_UINT16_MAX;
 	const int MAX_QUADS_PER_DRAW = MAX_VERTICES_PER_DRAW / 4;
 
-	prepareDraw(attributes, buffers, texture, PRIMITIVE_TRIANGLES, CULL_BACK);
+	prepareDraw(attributes, buffers, texture, PRIMITIVE_TRIANGLES, CULL_NONE);
 
 	vkCmdBindIndexBuffer(
 		commandBuffers.at(currentFrame),
@@ -1409,25 +1403,8 @@ graphics::Shader::BuiltinUniformData Graphics::getCurrentBuiltinUniformData()
 	data.transformMatrix = getTransform();
 	data.projectionMatrix = getDeviceProjection();
 
-	// The normal matrix is the transpose of the inverse of the rotation portion
-	// (top-left 3x3) of the transform matrix.
-	{
-		Matrix3 normalmatrix = Matrix3(data.transformMatrix).transposedInverse();
-		const float *e = normalmatrix.getElements();
-		for (int i = 0; i < 3; i++)
-		{
-			data.normalMatrix[i].x = e[i * 3 + 0];
-			data.normalMatrix[i].y = e[i * 3 + 1];
-			data.normalMatrix[i].z = e[i * 3 + 2];
-			data.normalMatrix[i].w = 0.0f;
-		}
-	}
-
-	// Store DPI scale in an unused component of another vector.
-	data.normalMatrix[0].w = (float)getCurrentDPIScale();
-
-	// Same with point size.
-	data.normalMatrix[1].w = getPointSize();
+	data.scaleParams.x = (float) getCurrentDPIScale();
+	data.scaleParams.y = getPointSize();
 
 	// Flip y to convert input y-up [-1, 1] to vulkan's y-down [-1, 1].
 	// Convert input z [-1, 1] to vulkan [0, 1].
@@ -2826,7 +2803,8 @@ VkPipeline Graphics::createGraphicsPipeline(GraphicsPipelineConfiguration &confi
 	return graphicsPipeline;
 }
 
-void Graphics::ensureGraphicsPipelineConfiguration(GraphicsPipelineConfiguration &configuration) {
+void Graphics::ensureGraphicsPipelineConfiguration(GraphicsPipelineConfiguration &configuration)
+{
 	auto it = graphicsPipelines.find(configuration);
 	if (it != graphicsPipelines.end())
 	{
