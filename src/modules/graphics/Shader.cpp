@@ -51,11 +51,7 @@ static const char global_syntax[] = R"(
 	#define mediump
 	#define highp
 #endif
-#if defined(VERTEX) || __VERSION__ > 100 || defined(GL_FRAGMENT_PRECISION_HIGH)
-	#define LOVE_HIGHP_OR_MEDIUMP highp
-#else
-	#define LOVE_HIGHP_OR_MEDIUMP mediump
-#endif
+#define LOVE_HIGHP_OR_MEDIUMP highp
 #if __VERSION__ >= 300
 #define LOVE_IO_LOCATION(x) layout (location = x)
 #else
@@ -88,41 +84,23 @@ static const char global_syntax[] = R"(
 )";
 
 static const char render_uniforms[] = R"(
-// According to the GLSL ES 1.0 spec, uniform precision must match between stages,
-// but we can't guarantee that highp is always supported in fragment shaders...
-// We *really* don't want to use mediump for these in vertex shaders though.
-#ifdef LOVE_SPLIT_UNIFORMS_PER_DRAW
-uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw[13];
-uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw2[1];
-#else
-uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_UniformsPerDraw[14];
-#endif
+uniform highp vec4 love_UniformsPerDraw[12];
 
 // Older GLSL doesn't support preprocessor line continuations...
 #define TransformMatrix mat4(love_UniformsPerDraw[0], love_UniformsPerDraw[1], love_UniformsPerDraw[2], love_UniformsPerDraw[3])
 #define ProjectionMatrix mat4(love_UniformsPerDraw[4], love_UniformsPerDraw[5], love_UniformsPerDraw[6], love_UniformsPerDraw[7])
 #define TransformProjectionMatrix (ProjectionMatrix * TransformMatrix)
 
-#define NormalMatrix mat3(love_UniformsPerDraw[8].xyz, love_UniformsPerDraw[9].xyz, love_UniformsPerDraw[10].xyz)
-
-#define CurrentDPIScale (love_UniformsPerDraw[8].w)
-#define ConstantPointSize (love_UniformsPerDraw[9].w)
-
-#define love_ClipSpaceParams (love_UniformsPerDraw[11])
-
-#define ConstantColor (love_UniformsPerDraw[12])
-
-#ifdef LOVE_SPLIT_UNIFORMS_PER_DRAW
-#define love_ScreenSize (love_UniformsPerDraw2[0])
-#else
-#define love_ScreenSize (love_UniformsPerDraw[13])
-#endif
+#define CurrentDPIScale (love_UniformsPerDraw[8].x)
+#define ConstantPointSize (love_UniformsPerDraw[8].y)
+#define love_ClipSpaceParams (love_UniformsPerDraw[9])
+#define ConstantColor (love_UniformsPerDraw[10])
+#define love_ScreenSize (love_UniformsPerDraw[11])
 
 // Alternate names
 #define ViewSpaceFromLocal TransformMatrix
 #define ClipSpaceFromView ProjectionMatrix
 #define ClipSpaceFromLocal TransformProjectionMatrix
-#define ViewNormalFromLocal NormalMatrix
 )";
 
 static const char global_functions[] = R"(
@@ -599,7 +577,7 @@ static Shader::EntryPoint getComputeEntryPoint(const std::string &src, const std
 
 } // glsl
 
-static_assert(sizeof(Shader::BuiltinUniformData) == sizeof(float) * 4 * 14, "Update the array in wrap_GraphicsShader.lua if this changes.");
+static_assert(sizeof(Shader::BuiltinUniformData) == sizeof(float) * 4 * 12, "Update the array in wrap_GraphicsShader.lua if this changes.");
 
 love::Type Shader::type("Shader", &Object::type);
 
@@ -669,11 +647,6 @@ std::string Shader::createShaderStageCode(Graphics *gfx, ShaderStageType stage, 
 		ss << "#define LOVE_GAMMA_CORRECT 1\n";
 	if (info.usesMRT)
 		ss << "#define LOVE_MULTI_RENDER_TARGETS 1\n";
-
-	// Note: backends are expected to handle this situation if highp is ever
-	// conditional in that backend.
-	if (!gfx->getCapabilities().features[Graphics::FEATURE_PIXEL_SHADER_HIGHP])
-		ss << "#define LOVE_SPLIT_UNIFORMS_PER_DRAW 1\n";
 
 	for (const auto &def : options.defines)
 		ss << "#define " + def.first + " " + def.second + "\n";
@@ -928,6 +901,14 @@ void Shader::getLocalThreadgroupSize(int *x, int *y, int *z)
 	*z = reflection.localThreadgroupSize[2];
 }
 
+const std::vector<Buffer::DataDeclaration> *Shader::getBufferFormat(const std::string &name) const
+{
+	auto it = reflection.bufferFormats.find(name);
+	if (it != reflection.bufferFormats.end())
+		return &it->second;
+	return nullptr;
+}
+
 bool Shader::validate(StrongRef<ShaderStage> stages[], std::string& err)
 {
 	Reflection reflection;
@@ -944,6 +925,71 @@ static DataBaseType getBaseType(glslang::TBasicType basictype)
 		case glslang::EbtBool: return DATA_BASETYPE_BOOL;
 		default: return DATA_BASETYPE_FLOAT;
 	}
+}
+
+static DataFormat getDataFormat(glslang::TBasicType basictype, int components, int rows, int columns, bool matrix)
+{
+	if (matrix)
+	{
+		if (basictype != glslang::EbtFloat)
+			return DATAFORMAT_MAX_ENUM;
+
+		if (rows == 2 && columns == 2)
+			return DATAFORMAT_FLOAT_MAT2X2;
+		else if (rows == 2 && columns == 3)
+			return DATAFORMAT_FLOAT_MAT2X3;
+		else if (rows == 2 && columns == 4)
+			return DATAFORMAT_FLOAT_MAT2X4;
+		else if (rows == 3 && columns == 2)
+			return DATAFORMAT_FLOAT_MAT3X2;
+		else if (rows == 3 && columns == 3)
+			return DATAFORMAT_FLOAT_MAT3X3;
+		else if (rows == 3 && columns == 4)
+			return DATAFORMAT_FLOAT_MAT3X4;
+		else if (rows == 4 && columns == 2)
+			return DATAFORMAT_FLOAT_MAT4X2;
+		else if (rows == 4 && columns == 3)
+			return DATAFORMAT_FLOAT_MAT4X3;
+		else if (rows == 4 && columns == 4)
+			return DATAFORMAT_FLOAT_MAT4X4;
+		else
+			return DATAFORMAT_MAX_ENUM;
+	}
+	else if (basictype == glslang::EbtFloat)
+	{
+		if (components == 1)
+			return DATAFORMAT_FLOAT;
+		else if (components == 2)
+			return DATAFORMAT_FLOAT_VEC2;
+		else if (components == 3)
+			return DATAFORMAT_FLOAT_VEC2;
+		else if (components == 4)
+			return DATAFORMAT_FLOAT_VEC2;
+	}
+	else if (basictype == glslang::EbtInt)
+	{
+		if (components == 1)
+			return DATAFORMAT_INT32;
+		else if (components == 2)
+			return DATAFORMAT_INT32_VEC2;
+		else if (components == 3)
+			return DATAFORMAT_INT32_VEC2;
+		else if (components == 4)
+			return DATAFORMAT_INT32_VEC2;
+	}
+	else if (basictype == glslang::EbtUint)
+	{
+		if (components == 1)
+			return DATAFORMAT_UINT32;
+		else if (components == 2)
+			return DATAFORMAT_UINT32_VEC2;
+		else if (components == 3)
+			return DATAFORMAT_UINT32_VEC2;
+		else if (components == 4)
+			return DATAFORMAT_UINT32_VEC2;
+	}
+
+	return DATAFORMAT_MAX_ENUM;
 }
 
 static PixelFormat getPixelFormat(glslang::TLayoutFormat format)
@@ -1035,6 +1081,48 @@ static T convertData(const glslang::TConstUnion &data)
 		case glslang::EbtUint64: return (T) data.getU64Const();
 		default: return 0;
 	}
+}
+
+static bool AddFieldsToFormat(std::vector<Buffer::DataDeclaration> &format, int level, const glslang::TType *type, int arraylength, const std::string &basename, std::string &err)
+{
+	if (type->isStruct())
+	{
+		auto fields = type->getStruct();
+
+		for (int i = 0; i < std::max(arraylength, 1); i++)
+		{
+			std::string name = basename;
+			if (level > 0)
+			{
+				name += type->getFieldName().c_str();
+				if (arraylength > 0)
+					name += "[" + std::to_string(i) + "]";
+				name += ".";
+			}
+			for (size_t fieldi = 0; fieldi < fields->size(); fieldi++)
+			{
+				const glslang::TType *fieldtype = (*fields)[fieldi].type;
+				int fieldlength = fieldtype->isSizedArray() ? fieldtype->getCumulativeArraySize() : 0;
+
+				if (!AddFieldsToFormat(format, level + 1, fieldtype, fieldlength, name, err))
+					return false;
+			}
+		}
+	}
+	else
+	{
+		DataFormat dataformat = getDataFormat(type->getBasicType(), type->getVectorSize(), type->getMatrixRows(), type->getMatrixCols(), type->isMatrix());
+		if (dataformat == DATAFORMAT_MAX_ENUM)
+		{
+			err = "Shader validation error:\n";
+			return false;
+		}
+
+		std::string name = basename.empty() ? type->getFieldName().c_str() : basename + type->getFieldName().c_str();
+		format.emplace_back(name.c_str(), dataformat, arraylength);
+	}
+
+	return true;
 }
 
 bool Shader::validateInternal(StrongRef<ShaderStage> stages[], std::string &err, Reflection &reflection)
@@ -1295,6 +1383,12 @@ bool Shader::validateInternal(StrongRef<ShaderStage> stages[], std::string &err,
 				u.access = (Access)(ACCESS_READ | ACCESS_WRITE);
 
 			reflection.storageBuffers[u.name] = u;
+
+			std::vector<Buffer::DataDeclaration> format;
+			if (!AddFieldsToFormat(format, 0, elementtype, 0, "", err))
+				return false;
+
+			reflection.bufferFormats[u.name] = format;
 		}
 		else
 		{

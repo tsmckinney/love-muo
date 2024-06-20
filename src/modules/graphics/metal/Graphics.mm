@@ -1116,25 +1116,8 @@ void Graphics::applyShaderUniforms(id<MTLRenderCommandEncoder> renderEncoder, lo
 	builtins->transformMatrix = getTransform();
 	builtins->projectionMatrix = getDeviceProjection();
 
-	// The normal matrix is the transpose of the inverse of the rotation portion
-	// (top-left 3x3) of the transform matrix.
-	{
-		Matrix3 normalmatrix = Matrix3(builtins->transformMatrix).transposedInverse();
-		const float *e = normalmatrix.getElements();
-		for (int i = 0; i < 3; i++)
-		{
-			builtins->normalMatrix[i].x = e[i * 3 + 0];
-			builtins->normalMatrix[i].y = e[i * 3 + 1];
-			builtins->normalMatrix[i].z = e[i * 3 + 2];
-			builtins->normalMatrix[i].w = 0.0f;
-		}
-	}
-
-	// Store DPI scale in an unused component of another vector.
-	builtins->normalMatrix[0].w = (float) getCurrentDPIScale();
-
-	// Same with point size.
-	builtins->normalMatrix[1].w = getPointSize();
+	builtins->scaleParams.x = (float) getCurrentDPIScale();
+	builtins->scaleParams.y = getPointSize();
 
 	uint32 flags = Shader::CLIP_TRANSFORM_Z_NEG1_1_TO_0_1;
 	builtins->clipSpaceParams = Shader::computeClipSpaceParams(flags);
@@ -2244,7 +2227,6 @@ void Graphics::initCapabilities()
 		if (families.mac[1] || families.macCatalyst[1] || families.apple[7])
 			capabilities.features[FEATURE_CLAMP_ONE] = true;
 	}
-	capabilities.features[FEATURE_BLEND_MINMAX] = true;
 	capabilities.features[FEATURE_LIGHTEN] = true;
 	capabilities.features[FEATURE_FULL_NPOT] = true;
 	capabilities.features[FEATURE_PIXEL_SHADER_HIGHP] = true;
@@ -2253,19 +2235,14 @@ void Graphics::initCapabilities()
 	capabilities.features[FEATURE_GLSL4] = true;
 	capabilities.features[FEATURE_INSTANCING] = true;
 	capabilities.features[FEATURE_TEXEL_BUFFER] = true;
-	capabilities.features[FEATURE_INDEX_BUFFER_32BIT] = true;
-	capabilities.features[FEATURE_COPY_BUFFER] = true;
-	capabilities.features[FEATURE_COPY_BUFFER_TO_TEXTURE] = true;
 	capabilities.features[FEATURE_COPY_TEXTURE_TO_BUFFER] = true;
-	capabilities.features[FEATURE_COPY_RENDER_TARGET_TO_BUFFER] = true;
-	capabilities.features[FEATURE_MIPMAP_RANGE] = true;
 
 	if (families.mac[1] || families.macCatalyst[1] || families.apple[3])
 		capabilities.features[FEATURE_INDIRECT_DRAW] = true;
 	else
 		capabilities.features[FEATURE_INDIRECT_DRAW] = false;
 	
-	static_assert(FEATURE_MAX_ENUM == 19, "Graphics::initCapabilities must be updated when adding a new graphics feature!");
+	static_assert(FEATURE_MAX_ENUM == 13, "Graphics::initCapabilities must be updated when adding a new graphics feature!");
 
 	// https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
 	capabilities.limits[LIMIT_POINT_SIZE] = 511;
