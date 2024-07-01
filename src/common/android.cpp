@@ -98,43 +98,29 @@ bool getSafeArea(int &top, int &left, int &bottom, int &right)
 	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
 	jobject activity = (jobject) SDL_AndroidGetActivity();
 	jclass clazz = env->GetObjectClass(activity);
+    jclass rectClass = env->FindClass("android/graphics/Rect");
+    jmethodID methodID = env->GetMethodID(clazz, "getSafeArea", "()Landroid/graphics/Rect;");
+	jobject safeArea = env->CallObjectMethod(activity, methodID);
 
-	static jmethodID methodID = env->GetMethodID(clazz, "getSafeArea", "()Z");
-
-	bool hasSafeArea = false;
-
-	if (methodID == nullptr)
-		// NoSuchMethodException is thrown in case methodID is null
-		env->ExceptionClear();
-	else if ((hasSafeArea = env->CallBooleanMethod(activity, methodID)))
+	if (safeArea != nullptr)
 	{
-		top = env->GetIntField(activity, env->GetFieldID(clazz, "safeAreaTop", "I"));
-		left = env->GetIntField(activity, env->GetFieldID(clazz, "safeAreaLeft", "I"));
-		bottom = env->GetIntField(activity, env->GetFieldID(clazz, "safeAreaBottom", "I"));
-		right = env->GetIntField(activity, env->GetFieldID(clazz, "safeAreaRight", "I"));
+		top = env->GetIntField(activity, env->GetFieldID(rectClass, "top", "I"));
+		left = env->GetIntField(activity, env->GetFieldID(rectClass, "left", "I"));
+		bottom = env->GetIntField(activity, env->GetFieldID(rectClass, "bottom", "I"));
+		right = env->GetIntField(activity, env->GetFieldID(rectClass, "right", "I"));
+        env->DeleteLocalRef(safeArea);
 	}
 
+    env->DeleteLocalRef(rectClass);
 	env->DeleteLocalRef(clazz);
 	env->DeleteLocalRef(activity);
 
-	return hasSafeArea;
+	return safeArea != nullptr;
 }
 
 bool openURL(const std::string &url)
 {
-	JNIEnv *env = (JNIEnv*) SDL_AndroidGetJNIEnv();
-	jobject activity = (jobject) SDL_AndroidGetActivity();
-	jclass clazz = env->GetObjectClass(activity);
-
-	static jmethodID openURL = env->GetMethodID(clazz, "openURLFromLOVE", "(Ljava/lang/String;)Z");
-
-	jstring jstringURL = env->NewStringUTF(url.c_str());
-	jboolean result = env->CallBooleanMethod(clazz, openURL, jstringURL);
-
-	env->DeleteLocalRef(jstringURL);
-	env->DeleteLocalRef(clazz);
-	env->DeleteLocalRef(activity);
-	return (bool) result;
+	return SDL_OpenURL(url.c_str()) == 0;
 }
 
 void vibrate(double seconds)

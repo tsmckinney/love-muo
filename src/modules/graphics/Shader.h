@@ -51,7 +51,6 @@ public:
 
 	enum Language
 	{
-		LANGUAGE_GLSL1,
 		LANGUAGE_GLSL3,
 		LANGUAGE_GLSL4,
 		LANGUAGE_MAX_ENUM
@@ -65,7 +64,6 @@ public:
 		BUILTIN_TEXTURE_VIDEO_CB,
 		BUILTIN_TEXTURE_VIDEO_CR,
 		BUILTIN_UNIFORMS_PER_DRAW,
-		BUILTIN_UNIFORMS_PER_DRAW_2,
 		BUILTIN_MAX_ENUM
 	};
 
@@ -161,6 +159,7 @@ public:
 		std::string name;
 
 		int resourceIndex;
+		int bindingStartIndex;
 
 		union
 		{
@@ -188,8 +187,6 @@ public:
 		Vector4 scaleParams;
 		Vector4 clipSpaceParams;
  		Colorf constantColor;
-
-		// Pixel shader-centric variables past this point.
 		Vector4 screenSizeParams;
  	};
 
@@ -268,6 +265,9 @@ public:
 	void getLocalThreadgroupSize(int *x, int *y, int *z);
 
 	const std::vector<Buffer::DataDeclaration> *getBufferFormat(const std::string &name) const;
+
+	bool isUsingDeprecatedTextureFunctions() const;
+	bool isUsingDeprecatedTextureUniform() const;
 
 	static SourceInfo getSourceInfo(const std::string &src);
 	static std::string createShaderStageCode(Graphics *gfx, ShaderStageType stage, const std::string &code, const CompileOptions &options, const SourceInfo &info, bool gles, bool checksystemfeatures);
