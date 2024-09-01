@@ -237,23 +237,6 @@ bool Texture::loadVolatile()
 		}
 	}
 
-	int64 memsize = 0;
-
-	if (root)
-	{
-		for (int mip = 0; mip < getMipmapCount(); mip++)
-		{
-			int w = getPixelWidth(mip);
-			int h = getPixelHeight(mip);
-			int slices = getDepth(mip) * layerCount;
-			memsize += getPixelFormatSliceSize(format, w, h) * slices;
-		}
-
-		memsize *= static_cast<int>(msaaSamples);
-	}
-
-	setGraphicsMemorySize(memsize);
-
 	if (!debugName.empty())
 	{
 		if (vgfx->getEnabledOptionalInstanceExtensions().debugInfo)
@@ -274,6 +257,8 @@ bool Texture::loadVolatile()
 			vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
 		}
 	}
+
+	updateGraphicsMemorySize(true);
 
 	return true;
 }
@@ -301,7 +286,7 @@ void Texture::unloadVolatile()
 	textureImage = VK_NULL_HANDLE;
 	textureImageAllocation = VK_NULL_HANDLE;
 
-	setGraphicsMemorySize(0);
+	updateGraphicsMemorySize(false);
 }
 
 Texture::~Texture()
@@ -461,7 +446,8 @@ void Texture::generateMipmapsInternal()
 	if (imageLayout != VK_IMAGE_LAYOUT_GENERAL)
 		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format,
 			imageLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
-			0, static_cast<uint32_t>(getMipmapCount()), 0, static_cast<uint32_t>(layerCount));
+			rootView.startMipmap, static_cast<uint32_t>(getMipmapCount()),
+			rootView.startLayer, static_cast<uint32_t>(layerCount));
 
 	VkImageMemoryBarrier barrier{};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -632,16 +618,18 @@ void Texture::copyFromBuffer(graphics::Buffer *source, size_t sourceoffset, int 
 	region.bufferRowLength = sourcewidth;
 	region.bufferImageHeight = 1;
 	region.imageSubresource = layers;
+	region.imageOffset.x = rect.x;
+	region.imageOffset.y = rect.y;
 	region.imageExtent.width = static_cast<uint32_t>(rect.w);
 	region.imageExtent.height = static_cast<uint32_t>(rect.h);
 
 	if (imageLayout != VK_IMAGE_LAYOUT_GENERAL)
 	{
-		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format, imageLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format, imageLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layers.mipLevel, 1, layers.baseArrayLayer, 1);
 
 		vkCmdCopyBufferToImage(commandBuffer, (VkBuffer)source->getHandle(), textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, imageLayout);
+		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, imageLayout, layers.mipLevel, 1, layers.baseArrayLayer, 1);
 	}
 	else
 		vkCmdCopyBufferToImage(commandBuffer, (VkBuffer)source->getHandle(), textureImage, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
@@ -662,17 +650,19 @@ void Texture::copyToBuffer(graphics::Buffer *dest, int slice, int mipmap, const 
 	region.bufferRowLength = destwidth;
 	region.bufferImageHeight = 0;
 	region.imageSubresource = layers;
+	region.imageOffset.x = rect.x;
+	region.imageOffset.y = rect.y;
 	region.imageExtent.width = static_cast<uint32_t>(rect.w);
 	region.imageExtent.height = static_cast<uint32_t>(rect.h);
 	region.imageExtent.depth = 1;
 
 	if (imageLayout != VK_IMAGE_LAYOUT_GENERAL)
 	{
-		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format, imageLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format, imageLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layers.mipLevel, 1, layers.baseArrayLayer, 1);
 
 		vkCmdCopyImageToBuffer(commandBuffer, textureImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, (VkBuffer) dest->getHandle(), 1, &region);
 
-		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, imageLayout);
+		Vulkan::cmdTransitionImageLayout(commandBuffer, textureImage, format, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, imageLayout, layers.mipLevel, 1, layers.baseArrayLayer, 1);
 	}
 	else
 		vkCmdCopyImageToBuffer(commandBuffer, textureImage, VK_IMAGE_LAYOUT_GENERAL, (VkBuffer)dest->getHandle(), 1, &region);

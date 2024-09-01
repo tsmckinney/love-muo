@@ -71,7 +71,8 @@ Font::Font(love::font::Rasterizer *r, const SamplerState &s)
 	// largest texture size if no rough match is found.
 	while (true)
 	{
-		if ((shaper->getHeight() * 0.8) * shaper->getHeight() * 30 <= textureWidth * textureHeight)
+		float dpiscale = r->getDPIScale();
+		if ((shaper->getHeight() * 0.8 * dpiscale) * shaper->getHeight() * 30 * dpiscale <= textureWidth * textureHeight)
 			break;
 
 		TextureSize nextsize = getNextTextureSize();
@@ -307,25 +308,27 @@ const Font::Glyph &Font::addGlyph(love::font::TextShaper::GlyphIndex glyphindex)
 		// Extrude the quad borders by 1 pixel. We have an extra pixel of
 		// transparent padding in the texture atlas, so the quad extrusion will
 		// add some antialiasing at the edges of the quad.
-		int o = 1;
+		float o = 1;
 
 		// 0---2
 		// | / |
 		// 1---3
 		const GlyphVertex verts[4] =
 		{
-			{float(-o),      float(-o),                normToUint16((tX-o)/tWidth),   normToUint16((tY-o)/tHeight),   c},
-			{float(-o),      (h+o)/glyphdpiscale,      normToUint16((tX-o)/tWidth),   normToUint16((tY+h+o)/tHeight), c},
-			{(w+o)/glyphdpiscale, float(-o),           normToUint16((tX+w+o)/tWidth), normToUint16((tY-o)/tHeight),   c},
-			{(w+o)/glyphdpiscale, (h+o)/glyphdpiscale, normToUint16((tX+w+o)/tWidth), normToUint16((tY+h+o)/tHeight), c}
+			{ -o,  -o, normToUint16((tX-o)/tWidth),   normToUint16((tY-o)/tHeight),   c},
+			{ -o, h+o, normToUint16((tX-o)/tWidth),   normToUint16((tY+h+o)/tHeight), c},
+			{w+o,  -o, normToUint16((tX+w+o)/tWidth), normToUint16((tY-o)/tHeight),   c},
+			{w+o, h+o, normToUint16((tX+w+o)/tWidth), normToUint16((tY+h+o)/tHeight), c}
 		};
 
 		// Copy vertex data to the glyph and set proper bearing.
 		for (int i = 0; i < 4; i++)
 		{
 			g.vertices[i] = verts[i];
-			g.vertices[i].x += gd->getBearingX() / glyphdpiscale;
-			g.vertices[i].y -= gd->getBearingY() / glyphdpiscale;
+			g.vertices[i].x += gd->getBearingX();
+			g.vertices[i].y -= gd->getBearingY();
+			g.vertices[i].x /= glyphdpiscale;
+			g.vertices[i].y /= glyphdpiscale;
 		}
 
 		textureX += w + TEXTURE_PADDING;
@@ -467,7 +470,7 @@ std::vector<Font::DrawCommand> Font::generateVerticesFormatted(const love::font:
 	vertices.reserve(text.cps.size() * 4);
 
 	std::vector<Range> ranges;
-	std::vector<int> widths;
+	std::vector<float> widths;
 	shaper->getWrap(text, wrap, ranges, &widths);
 
 	float y = 0.0f;
@@ -475,15 +478,15 @@ std::vector<Font::DrawCommand> Font::generateVerticesFormatted(const love::font:
 
 	for (int i = 0; i < (int)ranges.size(); i++)
 	{
-		const auto& range = ranges[i];
+		const auto &range = ranges[i];
 
 		if (!range.isValid())
 		{
-			y += getHeight() * getLineHeight();
+			y += shaper->getCombinedHeight();
 			continue;
 		}
 
-		float width = (float) widths[i];
+		float width = widths[i];
 		love::Vector2 offset(0.0f, floorf(y));
 		float extraspacing = 0.0f;
 
@@ -503,7 +506,7 @@ std::vector<Font::DrawCommand> Font::generateVerticesFormatted(const love::font:
 				auto end = start + range.getSize();
 				float numspaces = std::count(start, end, ' ');
 				if (width < wrap && numspaces >= 1)
-					extraspacing = (wrap - width) / numspaces;
+					extraspacing = floorf((wrap - width) / numspaces);
 				else
 					extraspacing = 0.0f;
 				break;
@@ -536,7 +539,7 @@ std::vector<Font::DrawCommand> Font::generateVerticesFormatted(const love::font:
 			drawcommands.insert(drawcommands.end(), firstcmd, newcommands.end());
 		}
 
-		y += getHeight() * getLineHeight();
+		y += shaper->getCombinedHeight();
 	}
 
 	if (info != nullptr)
@@ -609,12 +612,12 @@ int Font::getWidth(uint32 glyph)
 	return shaper->getGlyphAdvance(glyph);
 }
 
-void Font::getWrap(const love::font::ColoredCodepoints &codepoints, float wraplimit, std::vector<Range> &ranges, std::vector<int> *linewidths)
+void Font::getWrap(const love::font::ColoredCodepoints &codepoints, float wraplimit, std::vector<Range> &ranges, std::vector<float> *linewidths)
 {
 	shaper->getWrap(codepoints, wraplimit, ranges, linewidths);
 }
 
-void Font::getWrap(const std::vector<love::font::ColoredString> &text, float wraplimit, std::vector<std::string> &lines, std::vector<int> *linewidths)
+void Font::getWrap(const std::vector<love::font::ColoredString> &text, float wraplimit, std::vector<std::string> &lines, std::vector<float> *linewidths)
 {
 	shaper->getWrap(text, wraplimit, lines, linewidths);
 }

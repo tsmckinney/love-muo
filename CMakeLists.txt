@@ -1635,15 +1635,19 @@ add_library(love_3p_luahttps
 	src/libraries/luahttps/src/common/HTTPS.h
 	src/libraries/luahttps/src/common/HTTPSClient.cpp
 	src/libraries/luahttps/src/common/HTTPSClient.h
+	src/libraries/luahttps/src/common/LibraryLoader.h
 	src/libraries/luahttps/src/common/PlaintextConnection.cpp
 	src/libraries/luahttps/src/common/PlaintextConnection.h
 	src/libraries/luahttps/src/generic/CurlClient.cpp
 	src/libraries/luahttps/src/generic/CurlClient.h
+	src/libraries/luahttps/src/generic/LinktimeLibraryLoader.cpp
 	src/libraries/luahttps/src/generic/OpenSSLConnection.cpp
 	src/libraries/luahttps/src/generic/OpenSSLConnection.h
+	src/libraries/luahttps/src/generic/UnixLibraryLoader.cpp
 	src/libraries/luahttps/src/lua/main.cpp
 	src/libraries/luahttps/src/windows/SChannelConnection.cpp
 	src/libraries/luahttps/src/windows/SChannelConnection.h
+	src/libraries/luahttps/src/windows/WindowsLibraryLoader.cpp
 	src/libraries/luahttps/src/windows/WinINetClient.cpp
 	src/libraries/luahttps/src/windows/WinINetClient.h
 )
@@ -2113,7 +2117,7 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
 	set(CPACK_NSIS_EXECUTABLES_DIRECTORY .)
 	set(CPACK_NSIS_PACKAGE_NAME "LOVE")
 	set(CPACK_NSIS_DISPLAY_NAME "LOVE ${LOVE_VERSION_STR}")
-	set(CPACK_NSIS_MODIFY_PATH OFF)
+	set(CPACK_NSIS_MODIFY_PATH ON)
 
 	if(LOVE_X64)
 		set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")

@@ -970,24 +970,40 @@ void Graphics::applyScissor()
 {
 	VkRect2D scissor{};
 
-	if (renderPassState.isWindow)
-		scissor.extent = swapChainExtent;
-	else
-	{
-		scissor.extent.width = renderPassState.width;
-		scissor.extent.height = renderPassState.height;
-	}
+	bool win = renderPassState.isWindow;
+	scissor.extent.width = win ? swapChainExtent.width : renderPassState.width;
+	scissor.extent.height = win ? swapChainExtent.height : renderPassState.height;
 
 	if (states.back().scissor)
 	{
 		const Rect &rect = states.back().scissorRect;
 		double dpiScale = getCurrentDPIScale();
 
-		// TODO: clamp this to the above viewport size.
-		scissor.offset.x = (int)(rect.x * dpiScale);
-		scissor.offset.y = (int)(rect.y * dpiScale);
-		scissor.extent.width = (uint32)(rect.w * dpiScale);
-		scissor.extent.height = (uint32)(rect.h * dpiScale);
+		int minScissorX = (int)(rect.x * dpiScale);
+		int minScissorY = (int)(rect.y * dpiScale);
+
+		int maxScissorX = minScissorX + (int)(rect.w * dpiScale) - 1;
+		int maxScissorY = minScissorY + (int)(rect.h * dpiScale) - 1;
+
+		// Avoid negative offsets.
+		int minX = std::max(scissor.offset.x, minScissorX);
+		int minY = std::max(scissor.offset.y, minScissorY);
+
+		int maxX = std::min(scissor.offset.x + (int)scissor.extent.width - 1, maxScissorX);
+		int maxY = std::min(scissor.offset.y + (int)scissor.extent.height - 1, maxScissorY);
+
+		if (maxX >= minX && maxY >= minY)
+		{
+			scissor.offset.x = minX;
+			scissor.offset.y = minY;
+			scissor.extent.width = (maxX - minX) + 1;
+			scissor.extent.height = (maxY - minY) + 1;
+		}
+		else
+		{
+			scissor.extent.width = 0;
+			scissor.extent.height = 0;
+		}
 	}
 
 	vkCmdSetScissor(commandBuffers.at(currentFrame), 0, 1, &scissor);
@@ -2330,6 +2346,7 @@ void Graphics::prepareDraw(const VertexAttributes &attributes, const BufferBindi
 	configuration.colorChannelMask = states.back().colorMask;
 	configuration.msaaSamples = renderPassState.msaa;
 	configuration.numColorAttachments = renderPassState.numColorAttachments;
+	configuration.packedColorAttachmentFormats = renderPassState.packedColorAttachmentFormats;
 	configuration.primitiveType = primitiveType;
 
 	if (optionalDeviceExtensions.extendedDynamicState)
@@ -2399,6 +2416,7 @@ void Graphics::setDefaultRenderPass()
 	renderPassState.height = static_cast<float>(swapChainExtent.height);
 	renderPassState.msaa = msaaSamples;
 	renderPassState.numColorAttachments = 1;
+	renderPassState.packedColorAttachmentFormats = (uint8)swapChainPixelFormat;
 	renderPassState.transitionImages.clear();
 
 	RenderPassConfiguration renderPassConfiguration{};
@@ -2526,6 +2544,9 @@ void Graphics::setRenderPass(const RenderTargets &rts, int pixelw, int pixelh, b
 	renderPassState.height = static_cast<float>(pixelh);
 	renderPassState.msaa = VK_SAMPLE_COUNT_1_BIT;
 	renderPassState.numColorAttachments = static_cast<uint32_t>(rts.colors.size());
+	renderPassState.packedColorAttachmentFormats = 0;
+	for (size_t i = 0; i < rts.colors.size(); i++)
+		renderPassState.packedColorAttachmentFormats |= ((uint64)rts.colors[i].texture->getPixelFormat()) << (i * 8ull);
 	renderPassState.transitionImages = std::move(transitionImages);
 }
 
@@ -2598,14 +2619,14 @@ VkSampler Graphics::createSampler(const SamplerState &samplerState)
 	if (samplerState.depthSampleMode.hasValue)
 	{
 		samplerInfo.compareEnable = VK_TRUE;
-		samplerInfo.compareOp = Vulkan::getCompareOp(samplerState.depthSampleMode.value);
+		// See the comment in renderstate.h
+		samplerInfo.compareOp = Vulkan::getCompareOp(getReversedCompareMode(samplerState.depthSampleMode.value));
 	}
 	else
 	{
 		samplerInfo.compareEnable = VK_FALSE;
 		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 	}
-	samplerInfo.compareEnable = VK_FALSE;
 	samplerInfo.mipmapMode = Vulkan::getMipMapMode(samplerState.mipmapFilter);
 	samplerInfo.mipLodBias = samplerState.lodBias;
 	samplerInfo.minLod = static_cast<float>(samplerState.minLod);
@@ -2766,6 +2787,16 @@ VkPipeline Graphics::createGraphicsPipeline(Shader *shader, const GraphicsPipeli
 	colorBlendAttachment.alphaBlendOp = Vulkan::getBlendOp(configuration.blendState.operationA);
 
 	std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments(configuration.numColorAttachments, colorBlendAttachment);
+
+	if (configuration.blendState.enable)
+	{
+		for (uint32 i = 0; i < configuration.numColorAttachments; i++)
+		{
+			PixelFormat format = (PixelFormat)((configuration.packedColorAttachmentFormats >> (i * 8ull)) & 0xFF);
+			if (!isPixelFormatSupported(format, PIXELFORMATUSAGEFLAGS_BLEND))
+				colorBlendAttachments[i].blendEnable = false;
+		}
+	}
 
 	VkPipelineColorBlendStateCreateInfo colorBlending{};
 	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;

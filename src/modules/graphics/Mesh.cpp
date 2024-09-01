@@ -109,13 +109,11 @@ Mesh::Mesh(const std::vector<Mesh::BufferAttribute> &attributes, PrimitiveType d
 	attachedAttributes = attributes;
 	vertexCount = attachedAttributes.size() > 0 ? LOVE_UINT32_MAX : 0;
 
-	auto gfx = Module::getInstance<Graphics>(Module::M_GRAPHICS);
-
 	for (int i = 0; i < (int) attachedAttributes.size(); i++)
 	{
 		auto &attrib = attachedAttributes[i];
 
-		finalizeAttribute(gfx, attrib);
+		finalizeAttribute(attrib);
 
 		int attributeIndex = getAttachedAttributeIndex(attrib.name);
 		if (attributeIndex != i && attributeIndex != -1)
@@ -143,7 +141,12 @@ void Mesh::setupAttachedAttributes()
 		if (getAttachedAttributeIndex(name) != -1)
 			throw love::Exception("Duplicate vertex attribute name: %s", name.c_str());
 
-		attachedAttributes.push_back({name, vertexBuffer, nullptr, name, (int) i, 0, STEP_PER_VERTEX, true});
+		BuiltinVertexAttribute builtinattrib;
+		int builtinAttribIndex = -1;
+		if (getConstant(name.c_str(), builtinattrib))
+			builtinAttribIndex = (int)builtinattrib;
+
+		attachedAttributes.push_back({name, vertexBuffer, nullptr, name, (int) i, 0, STEP_PER_VERTEX, builtinAttribIndex, true});
 	}
 }
 
@@ -158,7 +161,7 @@ int Mesh::getAttachedAttributeIndex(const std::string &name) const
 	return -1;
 }
 
-void Mesh::finalizeAttribute(Graphics *gfx, BufferAttribute &attrib) const
+void Mesh::finalizeAttribute(BufferAttribute &attrib) const
 {
 	if ((attrib.buffer->getUsageFlags() & BUFFERUSAGEFLAG_VERTEX) == 0)
 		throw love::Exception("Buffer must be created with vertex buffer support to be used as a Mesh vertex attribute.");
@@ -169,6 +172,12 @@ void Mesh::finalizeAttribute(Graphics *gfx, BufferAttribute &attrib) const
 	int indexInBuffer = attrib.buffer->getDataMemberIndex(attrib.nameInBuffer);
 	if (indexInBuffer < 0)
 		throw love::Exception("Buffer does not have a vertex attribute with name '%s'.", attrib.nameInBuffer.c_str());
+
+	BuiltinVertexAttribute builtinattrib;
+	if (getConstant(attrib.name.c_str(), builtinattrib))
+		attrib.builtinAttributeIndex = (int)builtinattrib;
+	else
+		attrib.builtinAttributeIndex = -1;
 
 	attrib.indexInBuffer = indexInBuffer;
 }
@@ -228,8 +237,6 @@ bool Mesh::isAttributeEnabled(const std::string &name) const
 
 void Mesh::attachAttribute(const std::string &name, Buffer *buffer, Mesh *mesh, const std::string &attachname, int startindex, AttributeStep step)
 {
-	auto gfx = Module::getInstance<Graphics>(Module::M_GRAPHICS);
-
 	BufferAttribute oldattrib = {};
 	BufferAttribute newattrib = {};
 
@@ -248,7 +255,7 @@ void Mesh::attachAttribute(const std::string &name, Buffer *buffer, Mesh *mesh, 
 	newattrib.startArrayIndex = startindex;
 	newattrib.step = step;
 
-	finalizeAttribute(gfx, newattrib);
+	finalizeAttribute(newattrib);
 
 	if (newattrib.indexInBuffer < 0)
 		throw love::Exception("The specified vertex buffer does not have a vertex attribute named '%s'", attachname.c_str());
@@ -581,7 +588,7 @@ void Mesh::drawInternal(Graphics *gfx, const Matrix4 &m, int instancecount, Buff
 	flush();
 
 	if (Shader::isDefaultActive())
-		Shader::attachDefault(Shader::STANDARD_DEFAULT);
+		Shader::attachDefault(primitiveType == PRIMITIVE_POINTS ? Shader::STANDARD_POINTS : Shader::STANDARD_DEFAULT);
 
 	if (Shader::current)
 		Shader::current->validateDrawState(primitiveType, texture);
@@ -597,14 +604,11 @@ void Mesh::drawInternal(Graphics *gfx, const Matrix4 &m, int instancecount, Buff
 			continue;
 
 		Buffer *buffer = attrib.buffer.get();
-		int attributeindex = -1;
+		int attributeindex = attrib.builtinAttributeIndex;
 
 		// If the attribute is one of the LOVE-defined ones, use the constant
 		// attribute index for it, otherwise query the index from the shader.
-		BuiltinVertexAttribute builtinattrib;
-		if (getConstant(attrib.name.c_str(), builtinattrib))
-			attributeindex = (int) builtinattrib;
-		else if (Shader::current)
+		if (attributeindex < 0 && Shader::current)
 			attributeindex = Shader::current->getVertexAttributeIndex(attrib.name);
 
 		if (attributeindex >= 0)

@@ -547,6 +547,7 @@ Texture *Graphics::getDefaultTexture(TextureType type, DataBaseType dataType, bo
 
 	Texture::Settings settings;
 	settings.type = type;
+	settings.readable.set(true);
 
 	switch (dataType)
 	{
@@ -564,6 +565,8 @@ Texture *Graphics::getDefaultTexture(TextureType type, DataBaseType dataType, bo
 
 	if (depthSample)
 	{
+		settings.renderTarget = true;
+
 		if (isPixelFormatSupported(PIXELFORMAT_DEPTH16_UNORM, PIXELFORMATUSAGE_SAMPLE))
 			settings.format = PIXELFORMAT_DEPTH16_UNORM;
 		else if (isPixelFormatSupported(PIXELFORMAT_DEPTH24_UNORM, PIXELFORMATUSAGE_SAMPLE))
@@ -597,12 +600,15 @@ Texture *Graphics::getDefaultTexture(TextureType type, DataBaseType dataType, bo
 
 	tex->setSamplerState(s);
 
-	uint8 pixel[] = {255, 255, 255, 255};
-	if (isPixelFormatInteger(settings.format))
-		pixel[0] = pixel[1] = pixel[2] = pixel[3] = 1;
+	if (!depthSample)
+	{
+		uint8 pixel[] = {255, 255, 255, 255};
+		if (isPixelFormatInteger(settings.format))
+			pixel[0] = pixel[1] = pixel[2] = pixel[3] = 1;
 
-	for (int slice = 0; slice < (type == TEXTURE_CUBE ? 6 : 1); slice++)
-		tex->replacePixels(pixel, sizeof(pixel), slice, 0, {0, 0, 1, 1}, false);
+		for (int slice = 0; slice < (type == TEXTURE_CUBE ? 6 : 1); slice++)
+			tex->replacePixels(pixel, sizeof(pixel), slice, 0, {0, 0, 1, 1}, false);
+	}
 
 	defaultTextures[type][dataType][depthsampleindex] = tex;
 
@@ -1045,28 +1051,12 @@ void Graphics::setRenderTargets(const RenderTargets &rts)
 	if (rtcount > capabilities.limits[LIMIT_RENDER_TARGETS])
 		throw love::Exception("This system can't simultaneously render to %d textures.", rtcount);
 
-	PixelFormat firstcolorformat = PIXELFORMAT_UNKNOWN;
-	if (!rts.colors.empty())
-		firstcolorformat = rts.colors[0].texture->getPixelFormat();
-
-	if (!firsttex->isRenderTarget())
-		throw love::Exception("Texture must be created as a render target to be used in setRenderTargets.");
-
-	if (isPixelFormatDepthStencil(firstcolorformat))
-		throw love::Exception("Depth/stencil format textures must be used with the 'depthstencil' field of the table passed into setRenderTargets.");
-
-	if (firsttarget.mipmap < 0 || firsttarget.mipmap >= firsttex->getMipmapCount())
-		throw love::Exception("Invalid mipmap level %d.", firsttarget.mipmap + 1);
-
-	if (!firsttex->isValidSlice(firsttarget.slice, firsttarget.mipmap))
-		throw love::Exception("Invalid slice index: %d.", firsttarget.slice + 1);
-
-	bool hasSRGBtexture = isPixelFormatSRGB(firstcolorformat);
+	bool hasSRGBtexture = false;
 	int pixelw = firsttex->getPixelWidth(firsttarget.mipmap);
 	int pixelh = firsttex->getPixelHeight(firsttarget.mipmap);
 	int reqmsaa = firsttex->getRequestedMSAA();
 
-	for (int i = 1; i < rtcount; i++)
+	for (int i = 0; i < rtcount; i++)
 	{
 		Texture *c = rts.colors[i].texture;
 		PixelFormat format = c->getPixelFormat();
@@ -1074,7 +1064,7 @@ void Graphics::setRenderTargets(const RenderTargets &rts)
 		int slice = rts.colors[i].slice;
 
 		if (!c->isRenderTarget())
-			throw love::Exception("Texture must be created as a render target to be used in setRenderTargets.");
+			throw love::Exception("Texture must be created as a canvas to be used in setCanvas.");
 
 		if (mip < 0 || mip >= c->getMipmapCount())
 			throw love::Exception("Invalid mipmap level %d.", mip + 1);
@@ -1089,7 +1079,7 @@ void Graphics::setRenderTargets(const RenderTargets &rts)
 			throw love::Exception("All textures must have the same MSAA value.");
 
 		if (isPixelFormatDepthStencil(format))
-			throw love::Exception("Depth/stencil format textures must be used with the 'depthstencil' field of the table passed into setRenderTargets.");
+			throw love::Exception("Depth/stencil format textures must be used with the 'depthstencil' field of the table passed into setCanvas.");
 
 		if (isPixelFormatSRGB(format))
 			hasSRGBtexture = true;
@@ -1102,10 +1092,10 @@ void Graphics::setRenderTargets(const RenderTargets &rts)
 		int slice = rts.depthStencil.slice;
 
 		if (!c->isRenderTarget())
-			throw love::Exception("Texture must be created as a render target to be used in setRenderTargets.");
+			throw love::Exception("Texture must be created as a canvas to be used in setCanvas.");
 
 		if (!isPixelFormatDepthStencil(c->getPixelFormat()))
-			throw love::Exception("Only depth/stencil format textures can be used with the 'depthstencil' field of the table passed into setRenderTargets.");
+			throw love::Exception("Only depth/stencil format textures can be used with the 'depthstencil' field of the table passed into setCanvas.");
 
 		if (c->getPixelWidth(mip) != pixelw || c->getPixelHeight(mip) != pixelh)
 			throw love::Exception("All Textures must have the same pixel dimensions.");
